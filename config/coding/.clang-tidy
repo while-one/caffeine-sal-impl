@@ -1,0 +1,47 @@
+# .clang-tidy for BARR-C:2018 Compliance
+---
+# Enable specific check groups
+Checks: >
+  -*,
+  bugprone-*,
+  performance-*,
+  portability-*,
+  readability-identifier-naming,
+  readability-make-member-function-const,
+  readability-static-definition-in-anonymous-namespace,
+  google-readability-casting,
+  modernize-use-nullptr,
+  -bugprone-easily-swappable-parameters
+
+# Warnings as errors ensures you don't ignore these in CI
+WarningsAsErrors: 'readability-identifier-naming,bugprone-narrowing-conversions'
+
+CheckOptions:
+  # --- BARR-C Rule 2.1: Naming Conventions ---
+  # Variable names shall be lowercase with underscores
+  - { key: readability-identifier-naming.VariableCase,        value: lower_case }
+  - { key: readability-identifier-naming.ParameterCase,       value: lower_case }
+  - { key: readability-identifier-naming.ConstantParameterCase, value: lower_case }
+  - { key: readability-identifier-naming.FunctionCase,        value: lower_case }
+
+  # Global variables: BARR-C doesn't mandate a prefix, but often 'g_' is used.
+  # Here we enforce lowercase for consistency with Rule 2.1.
+  - { key: readability-identifier-naming.GlobalVariableCase,  value: lower_case }
+
+  # BARR-C Rule 1.8: Macros shall be UPPER_CASE
+  - { key: readability-identifier-naming.MacroDefinitionCase, value: UPPER_CASE }
+
+  # Constants and Enums
+  - { key: readability-identifier-naming.ConstantCase,        value: UPPER_CASE }
+  - { key: readability-identifier-naming.EnumConstantCase,    value: UPPER_CASE }
+
+  # --- BARR-C Rule 3.1: Data Types & Safety ---
+  # This catches cases where you might lose data (e.g., int32 to int16)
+  - { key: bugprone-narrowing-conversions.WarnOnIntegerNarrowing, value: true }
+
+  # BARR-C Rule 5.1: Prohibit "magic numbers" in code
+  - { key: readability-magic-numbers.IgnorePowersOf2IntegerValues, value: true }
+
+  # --- Embedded Best Practices ---
+  # Ensures you use 'NULL' or 'nullptr' (if using C++) consistently
+  - { key: modernize-use-nullptr.NullMacros, value: 'NULL' }

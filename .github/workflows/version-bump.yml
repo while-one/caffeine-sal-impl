@@ -1,0 +1,97 @@
+name: Automatic SemVer Bump
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
+jobs:
+  bump-version:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.SEMVER_BUMP_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Determine Bump Type
+        id: bump_type
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          BODY="$PR_BODY"
+          TITLE="$PR_TITLE"
+          
+          # Default to patch
+          BUMP="patch"
+          
+          if echo "$BODY" | grep -iq "\[x\] major" || echo "$TITLE" | grep -iq "\[major\]"; then
+            BUMP="major"
+          elif echo "$BODY" | grep -iq "\[x\] minor" || echo "$TITLE" | grep -iq "\[minor\]"; then
+            BUMP="minor"
+          elif echo "$BODY" | grep -iq "\[x\] patch" || echo "$TITLE" | grep -iq "\[patch\]"; then
+            BUMP="patch"
+          fi
+          
+          echo "BUMP=$BUMP" >> $GITHUB_ENV
+          echo "Detected bump type: $BUMP"
+
+      - name: Bump Version in CMakeLists.txt
+        id: bump
+        run: |
+          # Read current version
+          CURRENT_VERSION=$(grep -oP "(?<=VERSION )[0-9]+\.[0-9]+\.[0-9]+" CMakeLists.txt)
+          echo "Current version: $CURRENT_VERSION"
+          
+          IFS=. read -r -a parts <<< "$CURRENT_VERSION"
+          MAJOR="${parts[0]}"
+          MINOR="${parts[1]}"
+          PATCH="${parts[2]}"
+          
+          if [ "$BUMP" == "major" ]; then
+            MAJOR=$((MAJOR + 1))
+            MINOR=0
+            PATCH=0
+          elif [ "$BUMP" == "minor" ]; then
+            MINOR=$((MINOR + 1))
+            PATCH=0
+          else
+            PATCH=$((PATCH + 1))
+          fi
+          
+          NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+          echo "New version: $NEW_VERSION"
+          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+          
+          # Replace version in CMakeLists.txt
+          sed -i "s/VERSION $CURRENT_VERSION/VERSION $NEW_VERSION/" CMakeLists.txt
+
+      - name: Commit and Push
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Only commit if there are changes
+          if ! git diff --quiet CMakeLists.txt; then
+            git add CMakeLists.txt
+            git commit -m "semberbot: bump version to ${{ env.NEW_VERSION }} [skip ci]"
+            git push origin main
+            
+            # Create and push tag
+            git tag "v${{ env.NEW_VERSION }}"
+            git push origin "v${{ env.NEW_VERSION }}"
+          else
+            echo "No version changes to commit."
+          fi
+

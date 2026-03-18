@@ -1,0 +1,8 @@
+# Build folder
+cmake-build-*/
+build*/
+
+# JetBrains IDE
+.idea/
+.artifacts/
+CMakeUserPresets.json

@@ -1,0 +1,60 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  lint-format:
+    name: Lint Format (Clang-Format)
+    runs-on: ubuntu-24.04
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    container:
+      image: ghcr.io/${{ github.repository_owner }}/caffeine-hal/build-native:latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Configure CMake (Dry Run Format)
+      run: cmake -B build -S . -DFORMAT_DRY_RUN=ON -DFETCHCONTENT_FULLY_DISCONNECTED=OFF
+
+    - name: Check Formatting
+      run: cmake --build build --target caffeine-template-format
+
+  static-analysis:
+    name: Static Analysis (Cppcheck & Clang-Tidy)
+    runs-on: ubuntu-24.04
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    container:
+      image: ghcr.io/${{ github.repository_owner }}/caffeine-hal/build-native:latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Configure CMake
+      run: cmake -B build -S .
+
+    - name: Run Analysis
+      run: cmake --build build --target caffeine-template-analyze
+
+  build-and-test:
+    name: Build & Unit Tests
+    runs-on: ubuntu-24.04
+    needs: [lint-format]
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    container:
+      image: ghcr.io/${{ github.repository_owner }}/caffeine-hal/build-native:latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Configure CMake
+      run: cmake -B build -S .
+
+    - name: Build Tests
+      run: cmake --build build --target caffeine-template-test -j 4
+
+    - name: Run Unit Tests
+      run: ctest --test-dir build --output-on-failure
