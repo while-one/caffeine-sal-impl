@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.23)
 
-project(caffeine-services-impl
+project(caffeine-sal-impl
         VERSION 0.1.0
         LANGUAGES C CXX
         DESCRIPTION "Concrete implementations for the Caffeine Framework middleware services"
-        HOMEPAGE_URL "https://github.com/while-one/caffeine-services-impl"
+        HOMEPAGE_URL "https://github.com/while-one/caffeine-sal-impl"
 )
 
 # Global standards for the Caffeine Framework
@@ -12,21 +12,7 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
-# User-configurable flags (with sensible defaults)
-option(CAFFEINE_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" ON)
-set(CAFFEINE_OPTIMIZATION_LEVEL "-Os" CACHE STRING "Compiler optimization level (e.g., -O0, -O2, -Os, -O3)")
-
-# Universal strict warnings and preparation for dead-code elimination
-set(CAFFEINE_COMPILE_OPTIONS
-        -pedantic-errors
-        -Wall -Wextra -Wpedantic -Wshadow
-        -ffunction-sections -fdata-sections
-        ${CAFFEINE_OPTIMIZATION_LEVEL}
-)
-
-if(CAFFEINE_WARNINGS_AS_ERRORS)
-    list(APPEND CAFFEINE_COMPILE_OPTIONS -Werror)
-endif()
+include(${PROJECT_SOURCE_DIR}/caffeine-build/cmake/CaffeineMacros.cmake)
 
 # Useful for IDEs, clang-tidy, and clangd
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -38,17 +24,16 @@ include(FetchContent)
 FetchContent_Declare(
     caffeine-hal
     GIT_REPOSITORY https://github.com/while-one/caffeine-hal.git
-    GIT_TAG        v0.4.4
+    GIT_TAG        v0.4.12
 )
 FetchContent_MakeAvailable(caffeine-hal)
 
 FetchContent_Declare(
-    caffeine-services
-    GIT_REPOSITORY https://github.com/while-one/caffeine-services.git
-    GIT_TAG        initial_structure
-    GIT_SUBMODULES ""
+    caffeine-sal
+    GIT_REPOSITORY https://github.com/while-one/caffeine-sal.git
+    GIT_TAG        v0.1.2
 )
-FetchContent_MakeAvailable(caffeine-services)
+FetchContent_MakeAvailable(caffeine-sal)
 
 # --- Component Configuration ---
 file(GLOB_RECURSE PORT_SOURCES_C "src/**/*.c")
@@ -59,21 +44,21 @@ add_library(${PROJECT_NAME} STATIC ${PORT_SOURCES_C})
 target_compile_options(${PROJECT_NAME} PRIVATE ${CAFFEINE_COMPILE_OPTIONS})
 target_compile_options(${PROJECT_NAME} INTERFACE ${CAFFEINE_COMPILE_OPTIONS})
 
-target_link_libraries(${PROJECT_NAME} PUBLIC caffeine::hal caffeine::services)
+target_link_libraries(${PROJECT_NAME} PUBLIC caffeine::hal caffeine::sal)
 
 target_include_directories(${PROJECT_NAME} PUBLIC 
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
 )
 
-add_library(caffeine::services-impl ALIAS ${PROJECT_NAME})
+add_library(caffeine::sal-impl ALIAS ${PROJECT_NAME})
 
 # Consistent naming for exported target
 set_target_properties(${PROJECT_NAME} PROPERTIES EXPORT_NAME services-impl)
 
 # --- Testing ---
-option(CFN_SERVICES_IMPL_BUILD_TESTS "Build the Caffeine-Services-Impl test executable" OFF)
+option(CFN_SAL_IMPL_BUILD_TESTS "Build the Caffeine-Services-Impl test executable" OFF)
 
-if(PROJECT_IS_TOP_LEVEL AND CFN_SERVICES_IMPL_BUILD_TESTS)
+if(PROJECT_IS_TOP_LEVEL AND CFN_SAL_IMPL_BUILD_TESTS)
     include(CTest)
     if(BUILD_TESTING)
         # Fetch hal-ports for the mock interface during testing
@@ -175,7 +160,7 @@ if(CPPCHECK)
         --check-level=exhaustive
         -D__GNUC__
         -I ${caffeine-hal_SOURCE_DIR}/include
-        -I ${caffeine-services_SOURCE_DIR}/include
+        -I ${caffeine-sal_SOURCE_DIR}/include
         --file-filter=${PROJECT_SOURCE_DIR}/src/*
         COMMENT "Running cppcheck static analysis using compile_commands.json..."
     )
@@ -201,4 +186,20 @@ if(CLANG_TIDY)
     if(TARGET ${PROJECT_NAME}-analyze)
         add_dependencies(${PROJECT_NAME}-analyze ${PROJECT_NAME}-tidy)
     endif()
+endif()
+
+# 4. C11 Compliance Check
+add_executable(${PROJECT_NAME}-compliance ${PROJECT_SOURCE_DIR}/tests/compliance.c)
+target_link_libraries(${PROJECT_NAME}-compliance PRIVATE ${PROJECT_NAME})
+target_compile_options(${PROJECT_NAME}-compliance PRIVATE
+    -std=c11
+    -pedantic-errors
+    -Wall
+    -Wextra
+    -Werror
+)
+set_target_properties(${PROJECT_NAME}-compliance PROPERTIES EXCLUDE_FROM_ALL ON)
+
+if(TARGET ${PROJECT_NAME}-analyze)
+    add_dependencies(${PROJECT_NAME}-analyze ${PROJECT_NAME}-compliance)
 endif()
