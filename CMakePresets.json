@@ -1,0 +1,12 @@
+{
+  "version": 4,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 23,
+    "patch": 0
+  },
+  "include": [
+    "caffeine-build/cmake/presets/base.json",
+    "caffeine-build/cmake/presets/mock/tests.json"
+  ]
+}
