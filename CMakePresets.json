@@ -6,7 +6,18 @@
     "patch": 0
   },
   "include": [
-    "caffeine-build/cmake/presets/base.json",
-    "caffeine-build/cmake/presets/mock/tests.json"
+    "caffeine-build/cmake/presets/base.json"
+  ],
+  "configurePresets": [
+    {
+      "name": "unit-tests-gtest",
+      "displayName": "SAL Impl Unit Tests (Native GTest)",
+      "inherits": "base-common",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/unit-tests-gtest",
+      "cacheVariables": {
+        "CFN_BUILD_TESTS": "ON"
+      }
+    }
   ]
 }

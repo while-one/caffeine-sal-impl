@@ -24,14 +24,15 @@ include(FetchContent)
 FetchContent_Declare(
     caffeine-hal
     GIT_REPOSITORY https://github.com/while-one/caffeine-hal.git
-    GIT_TAG        v0.4.12
+    GIT_TAG        v0.4.14
 )
+
 FetchContent_MakeAvailable(caffeine-hal)
 
 FetchContent_Declare(
     caffeine-sal
     GIT_REPOSITORY https://github.com/while-one/caffeine-sal.git
-    GIT_TAG        v0.1.2
+    GIT_TAG        v0.1.3
 )
 FetchContent_MakeAvailable(caffeine-sal)
 
@@ -56,19 +57,11 @@ add_library(caffeine::sal-impl ALIAS ${PROJECT_NAME})
 set_target_properties(${PROJECT_NAME} PROPERTIES EXPORT_NAME services-impl)
 
 # --- Testing ---
-option(CFN_SAL_IMPL_BUILD_TESTS "Build the Caffeine-Services-Impl test executable" OFF)
+option(CFN_BUILD_TESTS "Build unit tests" OFF)
 
-if(PROJECT_IS_TOP_LEVEL AND CFN_SAL_IMPL_BUILD_TESTS)
+if(PROJECT_IS_TOP_LEVEL AND CFN_BUILD_TESTS)
     include(CTest)
     if(BUILD_TESTING)
-        # Fetch hal-ports for the mock interface during testing
-        FetchContent_Declare(
-            caffeine-hal-ports
-            GIT_REPOSITORY https://github.com/while-one/caffeine-hal-ports.git
-            GIT_TAG        main
-        )
-        FetchContent_MakeAvailable(caffeine-hal-ports)
-        
         add_subdirectory(tests)
     endif()
 endif()
@@ -113,10 +106,9 @@ install(
 # Tooling: Formatting & Analysis
 # ==============================================================================
 
-# Gather sources for formatting and analysis
-file(GLOB_RECURSE TEST_SOURCES_CPP "tests/*.cpp")
-set(ALL_FORMAT_SOURCES ${PORT_SOURCES_C} ${PORT_SOURCES_H} ${TEST_SOURCES_CPP})
-set(ALL_ANALYSIS_SOURCES ${PORT_SOURCES_C} ${TEST_SOURCES_CPP})
+# Gather sources for formatting and analysis (C implementation only)
+set(ALL_FORMAT_SOURCES ${PORT_SOURCES_C} ${PORT_SOURCES_H})
+set(ALL_ANALYSIS_SOURCES ${PORT_SOURCES_C})
 
 # 1. Code Formatting (clang-format)
 find_program(CLANG_FORMAT clang-format)
@@ -131,16 +123,14 @@ if(CLANG_FORMAT)
         set(FORMAT_COMMENT "Formatting files with clang-format (BARR-C style)...")
     endif()
 
-    if(ALL_FORMAT_SOURCES)
-        add_custom_target(
-            ${PROJECT_NAME}-format
-            COMMAND ${CLANG_FORMAT}
-            ${FORMAT_ARGS}
-            -style=file:${PROJECT_SOURCE_DIR}/caffeine-build/config/coding/.clang-format
-            ${ALL_FORMAT_SOURCES}
-            COMMENT "${FORMAT_COMMENT}"
-        )
-    endif()
+    add_custom_target(
+        ${PROJECT_NAME}-format
+        COMMAND ${CLANG_FORMAT}
+        ${FORMAT_ARGS}
+        -style=file:${PROJECT_SOURCE_DIR}/caffeine-build/config/coding/.clang-format
+        ${ALL_FORMAT_SOURCES}
+        COMMENT "${FORMAT_COMMENT}"
+    )
 else()
     message(WARNING "clang-format not found.")
 endif()
@@ -159,8 +149,6 @@ if(CPPCHECK)
         --inline-suppr
         --check-level=exhaustive
         -D__GNUC__
-        -I ${caffeine-hal_SOURCE_DIR}/include
-        -I ${caffeine-sal_SOURCE_DIR}/include
         --file-filter=${PROJECT_SOURCE_DIR}/src/*
         COMMENT "Running cppcheck static analysis using compile_commands.json..."
     )
@@ -173,15 +161,18 @@ endif()
 # 3. Static Analysis (clang-tidy)
 find_program(CLANG_TIDY clang-tidy)
 if(CLANG_TIDY)
+    cfn_get_clang_tidy_extra_args(CLANG_TIDY_EXTRA_ARGS)
     add_custom_target(
         ${PROJECT_NAME}-tidy
         COMMAND ${CLANG_TIDY}
         -p=${CMAKE_BINARY_DIR}
         --config-file=${PROJECT_SOURCE_DIR}/caffeine-build/config/coding/.clang-tidy
         --header-filter="${PROJECT_SOURCE_DIR}/src/.*"
-        ${PORT_SOURCES_C}
+        ${CLANG_TIDY_EXTRA_ARGS}
+        ${ALL_ANALYSIS_SOURCES}
         COMMENT "Running clang-tidy static analysis using compile_commands.json..."
     )
+
     
     if(TARGET ${PROJECT_NAME}-analyze)
         add_dependencies(${PROJECT_NAME}-analyze ${PROJECT_NAME}-tidy)
