@@ -42,6 +42,7 @@ target_link_libraries(${PROJECT_NAME}-test
     PRIVATE
     ${PROJECT_NAME}
     caffeine::hal
+    caffeine::hal-mock
     caffeine::sal
     ${PROJECT_NAME}-gmock_main
 )
