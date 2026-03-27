@@ -47,11 +47,15 @@ This repository follows the architectural mandates of the `caffeine-sal` layer:
 
 ## Development & Testing
 
-This repository uses the unified `caffeine-build` system. To verify your implementations locally (using host mocks):
+This repository uses the framework's centralized scripts for orchestration. To verify your implementations locally (using host mocks):
 
-1.  **Format Code:** `./caffeine-build/scripts/build.sh tests-native caffeine-sal-impl-format`
-2.  **Run Static Analysis:** `./caffeine-build/scripts/build.sh tests-native caffeine-sal-impl-analyze`
-3.  **Run Unit Tests:** `./caffeine-build/scripts/build.sh tests-native all`
+```bash
+# Full Quality Gate (Format -> Analyze -> Build -> Test)
+./caffeine-build/scripts/ci.sh all
+
+# Perform a clean build and run tests for the unit-test preset
+./caffeine-build/scripts/build.sh --clean unit-tests-gtest all
+```
 
 ---
 
