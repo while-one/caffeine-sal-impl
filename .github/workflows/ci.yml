@@ -7,36 +7,7 @@ on:
     branches: [ "main" ]
 
 jobs:
-  lint-format:
-    name: Lint Format (Clang-Format)
-    runs-on: ubuntu-24.04
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: recursive
-    
-    - name: Check Formatting
-      run: ./caffeine-build/scripts/build.sh unit-tests-gtest caffeine-sal-impl-format -DFORMAT_DRY_RUN=ON
-
-  static-analysis:
-    name: Static Analysis (Cppcheck & Clang-Tidy)
-    runs-on: ubuntu-24.04
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: recursive
-    
-    - name: Run Analysis
-      run: ./caffeine-build/scripts/build.sh unit-tests-gtest caffeine-sal-impl-analyze
-
-  build-and-test:
-    name: Build & Unit Tests
-    runs-on: ubuntu-24.04
-    needs: [lint-format]
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: recursive
-    
-    - name: Build and Run Tests
-      run: ./caffeine-build/scripts/build.sh unit-tests-gtest all
+  framework-ci:
+    uses: while-one/caffeine-build/.github/workflows/reusable-ci.yml@main
+    with:
+      submodules: recursive

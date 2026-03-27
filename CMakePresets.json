@@ -11,12 +11,15 @@
   "configurePresets": [
     {
       "name": "unit-tests-gtest",
-      "displayName": "SAL Impl Unit Tests (Native GTest)",
-      "inherits": "base-common",
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/unit-tests-gtest",
-      "cacheVariables": {
-        "CFN_BUILD_TESTS": "ON"
+      "inherits": "base-unit-tests-gtest"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "unit-tests-gtest",
+      "configurePreset": "unit-tests-gtest",
+      "output": {
+        "outputOnFailure": true
       }
     }
   ]
