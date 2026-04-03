@@ -48,7 +48,7 @@ cfn_hal_error_code_t cfn_sal_bme280_construct(cfn_sal_bme280_t *sensor, const cf
  * @param sensor Pointer to the composite sensor structure.
  * @return CFN_HAL_ERROR_OK on success.
  */
-cfn_hal_error_code_t cfn_sal_bme280_destruct(cfn_sal_bme280_t *sensor);
+cfn_hal_error_code_t cfn_sal_bme280_destruct(const cfn_sal_bme280_t *sensor);
 
 #ifdef __cplusplus
 }

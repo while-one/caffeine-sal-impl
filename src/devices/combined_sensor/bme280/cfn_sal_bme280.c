@@ -97,7 +97,7 @@ static cfn_hal_error_code_t bme280_temp_read_celsius(cfn_sal_temp_sensor_t *driv
         return CFN_HAL_ERROR_BAD_PARAM;
     }
 
-    cfn_sal_bme280_t *bme = CFN_HAL_CONTAINER_OF(driver, cfn_sal_bme280_t, temp);
+    const cfn_sal_bme280_t *bme = CFN_HAL_CONTAINER_OF(driver, cfn_sal_bme280_t, temp);
     if (!bme->combined_state.hw_initialized)
     {
         return CFN_HAL_ERROR_DRIVER_NOT_INIT;
@@ -126,7 +126,7 @@ static cfn_hal_error_code_t bme280_temp_read_raw(cfn_sal_temp_sensor_t *driver, 
         return CFN_HAL_ERROR_BAD_PARAM;
     }
 
-    cfn_sal_bme280_t *bme = CFN_HAL_CONTAINER_OF(driver, cfn_sal_bme280_t, temp);
+    const cfn_sal_bme280_t *bme = CFN_HAL_CONTAINER_OF(driver, cfn_sal_bme280_t, temp);
     if (!bme->combined_state.hw_initialized)
     {
         return CFN_HAL_ERROR_DRIVER_NOT_INIT;
@@ -157,7 +157,7 @@ static cfn_hal_error_code_t bme280_hum_read_percent(cfn_sal_hum_sensor_t *driver
         return CFN_HAL_ERROR_BAD_PARAM;
     }
 
-    cfn_sal_bme280_t *bme = CFN_HAL_CONTAINER_OF(driver, cfn_sal_bme280_t, hum);
+    const cfn_sal_bme280_t *bme = CFN_HAL_CONTAINER_OF(driver, cfn_sal_bme280_t, hum);
     if (!bme->combined_state.hw_initialized)
     {
         return CFN_HAL_ERROR_DRIVER_NOT_INIT;
@@ -175,7 +175,7 @@ static cfn_hal_error_code_t bme280_hum_read_raw(cfn_sal_hum_sensor_t *driver, in
         return CFN_HAL_ERROR_BAD_PARAM;
     }
 
-    cfn_sal_bme280_t *bme = CFN_HAL_CONTAINER_OF(driver, cfn_sal_bme280_t, hum);
+    const cfn_sal_bme280_t *bme = CFN_HAL_CONTAINER_OF(driver, cfn_sal_bme280_t, hum);
     if (!bme->combined_state.hw_initialized)
     {
         return CFN_HAL_ERROR_DRIVER_NOT_INIT;
@@ -205,7 +205,7 @@ static cfn_hal_error_code_t bme280_press_read_hpa(cfn_sal_pressure_sensor_t *dri
         return CFN_HAL_ERROR_BAD_PARAM;
     }
 
-    cfn_sal_bme280_t *bme = CFN_HAL_CONTAINER_OF(driver, cfn_sal_bme280_t, press);
+    const cfn_sal_bme280_t *bme = CFN_HAL_CONTAINER_OF(driver, cfn_sal_bme280_t, press);
     if (!bme->combined_state.hw_initialized)
     {
         return CFN_HAL_ERROR_DRIVER_NOT_INIT;
@@ -223,7 +223,7 @@ static cfn_hal_error_code_t bme280_press_read_raw(cfn_sal_pressure_sensor_t *dri
         return CFN_HAL_ERROR_BAD_PARAM;
     }
 
-    cfn_sal_bme280_t *bme = CFN_HAL_CONTAINER_OF(driver, cfn_sal_bme280_t, press);
+    const cfn_sal_bme280_t *bme = CFN_HAL_CONTAINER_OF(driver, cfn_sal_bme280_t, press);
     if (!bme->combined_state.hw_initialized)
     {
         return CFN_HAL_ERROR_DRIVER_NOT_INIT;
@@ -268,7 +268,7 @@ cfn_hal_error_code_t cfn_sal_bme280_construct(cfn_sal_bme280_t *sensor, const cf
     return CFN_HAL_ERROR_OK;
 }
 
-cfn_hal_error_code_t cfn_sal_bme280_destruct(cfn_sal_bme280_t *sensor)
+cfn_hal_error_code_t cfn_sal_bme280_destruct(const cfn_sal_bme280_t *sensor)
 {
     if (!sensor)
     {
