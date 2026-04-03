@@ -43,7 +43,7 @@ Implementations are organized by their service category:
 
 This repository follows the architectural mandates of the `caffeine-sal` layer:
 *   **Generic PHY**: All implementations use the unified `cfn_sal_phy_t` for hardware mapping.
-*   **Shared Context Pattern**: Combination sensors (like the BME280) use reference-counted shared contexts to manage physical hardware while exposing multiple logical interfaces.
+*   **Composite Struct Pattern**: Combination sensors (like the BME280) use composite structures containing all logical interfaces and a standardized `cfn_sal_combined_state_t`. Navigation uses the `CFN_HAL_CONTAINER_OF` macro for type-safe, deterministic parent retrieval.
 
 ## Development & Testing
 

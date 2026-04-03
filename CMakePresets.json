@@ -12,6 +12,18 @@
     {
       "name": "unit-tests-gtest",
       "inherits": "base-unit-tests-gtest"
+    },
+    {
+      "name": "stm32f417vg-release",
+      "displayName": "STM32F417VG (ARM Cortex-M4)",
+      "inherits": "base-arm",
+      "binaryDir": "${sourceDir}/build/stm32f417vg-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CFN_HAL_PORT_VENDOR": "stm32",
+        "CFN_HAL_PORT_FAMILY": "stm32f4",
+        "CFN_HAL_PORT_TARGET": "stm32f417vgtx"
+      }
     }
   ],
   "testPresets": [
