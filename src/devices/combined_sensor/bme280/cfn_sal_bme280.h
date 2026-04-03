@@ -22,13 +22,13 @@ extern "C"
  */
 typedef struct
 {
-    cfn_sal_temp_sensor_t     temp;           /*!< Polymorphic Temperature Interface */
-    cfn_sal_hum_sensor_t      hum;            /*!< Polymorphic Humidity Interface */
-    cfn_sal_pressure_sensor_t press;          /*!< Polymorphic Pressure Interface */
+    cfn_sal_temp_sensor_t     temp;  /*!< Polymorphic Temperature Interface */
+    cfn_sal_hum_sensor_t      hum;   /*!< Polymorphic Humidity Interface */
+    cfn_sal_pressure_sensor_t press; /*!< Polymorphic Pressure Interface */
 
-    cfn_sal_combined_state_t  combined_state; /*!< Standard Framework Shared State */
+    cfn_sal_combined_state_t combined_state; /*!< Standard Framework Shared State */
 
-    int32_t                   t_fine;         /*!< BME280 internal temperature calibration state */
+    int32_t t_fine; /*!< BME280 internal temperature calibration state */
 } cfn_sal_bme280_t;
 
 /**

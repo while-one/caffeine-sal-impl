@@ -47,7 +47,7 @@ static cfn_hal_error_code_t bme280_shared_init(cfn_hal_driver_t *base)
     if (bme->combined_state.init_ref_count == 0)
     {
         /* First interface being initialized - power up the hardware */
-        cfn_hal_i2c_t *i2c       = (cfn_hal_i2c_t *) bme->combined_state.phy->handle;
+        cfn_hal_i2c_t       *i2c = (cfn_hal_i2c_t *) bme->combined_state.phy->handle;
         cfn_hal_error_code_t err = cfn_hal_i2c_init(i2c);
         if (err != CFN_HAL_ERROR_OK)
         {
