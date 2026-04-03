@@ -63,13 +63,13 @@ This repository uses the framework's centralized scripts for orchestration. To v
 
 While this library is no Mondrian, it deals with a different form of **abstraction art**. Hardware abstraction is a craft of its own—one that keeps your application code portable and your debugging sessions short.
 
-Whether **Caffeine** is fueling an elegant embedded project or just helping you wake up your hardware, you can contribute in the following ways:
+Whether Caffeine is fueling an elegant embedded project or just helping you wake up your hardware, you can contribute in the following ways:
 
-* **Star & Share:** If you find this project useful, give it a ⭐ on GitHub and share it with your fellow firmware engineers. It helps others find the library and grows the Caffeine community.
-* **Show & Tell:** If you are using Caffeine in a project (personal or professional), **let me know!** Hearing how it's being used is a huge motivator.
-* **Propose Features:** If the library is missing a specific "brushstroke," let's design the interface together.
-* **Port New Targets:** Help us expand the collection by porting the HAL to new silicon or peripheral sets.
-* **Expand the HIL Lab:** Contributions go primarily toward acquiring new development boards. These serve as dedicated **Hardware-in-the-Loop** test targets, ensuring every commit remains rock-solid across our entire fleet of supported hardware.
+* Star & Share: If you find this project useful, give it a ⭐ on GitHub and share it with your fellow firmware engineers. It helps others find the library and grows the Caffeine community.
+* Show & Tell: If you are using Caffeine in a project (personal or professional), let me know! Hearing how it's being used is a huge motivator.
+* Propose Features: If the library is missing a specific "brushstroke," let's design the interface together.
+* Port New Targets: Help us expand the collection by porting the HAL to new silicon or peripheral sets.
+* Expand the HIL Lab: Contributions go primarily toward acquiring new development boards. These serve as dedicated Hardware-in-the-Loop test targets, ensuring every commit remains rock-solid across our entire fleet of supported hardware.
 
 **If my projects helped you, feel free to buy me a brew. Or if it caused you an extra debugging session, open a PR!**
 
