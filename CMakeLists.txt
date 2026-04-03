@@ -24,7 +24,7 @@ include(FetchContent)
 FetchContent_Declare(
     caffeine-hal
     GIT_REPOSITORY https://github.com/while-one/caffeine-hal.git
-    GIT_TAG        v0.5.1
+    GIT_TAG        v0.5.4
 
 )
 
@@ -33,7 +33,7 @@ FetchContent_MakeAvailable(caffeine-hal)
 FetchContent_Declare(
     caffeine-sal
     GIT_REPOSITORY https://github.com/while-one/caffeine-sal.git
-    GIT_TAG        v0.1.5
+    GIT_TAG        v0.1.6
 )
 FetchContent_MakeAvailable(caffeine-sal)
 
@@ -134,3 +134,10 @@ set_target_properties(${PROJECT_NAME}-compliance PROPERTIES EXCLUDE_FROM_ALL ON)
 if(TARGET ${PROJECT_NAME}-analyze)
     add_dependencies(${PROJECT_NAME}-analyze ${PROJECT_NAME}-compliance)
 endif()
+
+# 5. Doxygen Documentation
+cfn_add_docs(
+    ${PROJECT_NAME}-docs
+    ${PROJECT_SOURCE_DIR}/src
+    COMMENT "Generating API documentation with Doxygen"
+)

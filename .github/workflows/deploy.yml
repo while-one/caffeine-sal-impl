@@ -1,0 +1,16 @@
+name: Documentation Deployment
+
+on:
+  workflow_run:
+    workflows: ["Automatic SemVer Bump"]
+    types:
+      - completed
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    uses: while-one/caffeine-build/.github/workflows/reusable-deploy-docs.yml@main
+    with:
+      preset: 'unit-tests-gtest'
+      submodules: 'recursive'
