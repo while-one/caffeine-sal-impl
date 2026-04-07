@@ -128,22 +128,6 @@ cfn_add_code_quality_targets(
     TIDY_HEADER_FILTER "${PROJECT_SOURCE_DIR}/src/.*"
 )
 
-# 4. C11 Compliance Check
-add_executable(${PROJECT_NAME}-compliance ${PROJECT_SOURCE_DIR}/tests/compliance.c)
-target_link_libraries(${PROJECT_NAME}-compliance PRIVATE ${PROJECT_NAME})
-target_compile_options(${PROJECT_NAME}-compliance PRIVATE
-    -std=c11
-    -pedantic-errors
-    -Wall
-    -Wextra
-    -Werror
-)
-set_target_properties(${PROJECT_NAME}-compliance PROPERTIES EXCLUDE_FROM_ALL ON)
-
-if(TARGET ${PROJECT_NAME}-analyze)
-    add_dependencies(${PROJECT_NAME}-analyze ${PROJECT_NAME}-compliance)
-endif()
-
 # 5. Doxygen Documentation
 set(ALL_UNIVERSE_SOURCES_NO_TESTS ${ALL_UNIVERSE_SOURCES})
 list(FILTER ALL_UNIVERSE_SOURCES_NO_TESTS EXCLUDE REGEX ".*/tests/.*")

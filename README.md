@@ -39,6 +39,16 @@ This repository contains concrete implementations for the abstract middleware se
     *   `cli/`: Command Line Interface.
     *   `collection/`: Linked List, Ring Buffer.
 
+---
+
+## Documentation
+
+The API reference for this repository is generated automatically via Doxygen and hosted on GitHub Pages.
+
+📚 **[View the Caffeine-SAL-Impl API Documentation](https://while-one.github.io/caffeine-sal-impl)**
+
+---
+
 ## Architecture
 
 This repository follows the architectural mandates of the `caffeine-sal` layer:
