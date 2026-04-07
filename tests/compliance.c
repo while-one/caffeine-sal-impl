@@ -12,7 +12,7 @@ int main(void)
 {
     /* Verify BME280 construction */
     cfn_sal_bme280_t bme;
-    cfn_sal_phy_t    phy = {.handle = NULL, .instance = NULL, .type = 0, .user_arg = NULL};
+    cfn_sal_phy_t    phy     = { .handle = NULL, .instance = NULL, .type = 0, .user_arg = NULL };
 
     cfn_hal_error_code_t err = cfn_sal_bme280_construct(&bme, &phy);
     (void) err;

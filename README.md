@@ -26,9 +26,9 @@
 
 This repository contains concrete implementations for the abstract middleware services defined in the `caffeine-sal` header-only library. It acts as a collection of platform-agnostic device drivers (e.g., specific sensors, memory devices, displays) and utility modules (e.g., specific file systems, networking stacks) built strictly on top of the generic `caffeine-hal` interface.
 
-## Repository Structure
+## Directory Structure
 
-Implementations are organized by their service category:
+*   `caffeine-build/`: Submodule containing centralized build presets, toolchains, scripts, and hardware target definitions.
 *   `src/devices/`:
     *   `led/`: Basic LED driver (Sink/Source logic).
     *   `button/`: GPIO-based button with debounce.
