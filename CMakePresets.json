@@ -24,6 +24,15 @@
         "CFN_HAL_PORT_FAMILY": "stm32f4",
         "CFN_HAL_PORT_TARGET": "stm32f417vgtx"
       }
+    },
+    {
+      "name": "universe-all-sources",
+      "displayName": "Universe Target (All Sources)",
+      "inherits": "base-common",
+      "binaryDir": "${sourceDir}/build/universe-all-sources",
+      "cacheVariables": {
+        "CAFFEINE_UNIVERSE_TARGET": "ON"
+      }
     }
   ],
   "testPresets": [

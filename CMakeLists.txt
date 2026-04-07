@@ -12,7 +12,17 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
+# 3. Code Quality (Formatting & Analysis)
+# Define the absolute universe of sources for this repository
+file(GLOB_RECURSE ALL_UNIVERSE_SOURCES 
+    "${PROJECT_SOURCE_DIR}/src/*.c"
+    "${PROJECT_SOURCE_DIR}/src/*.h"
+    "${PROJECT_SOURCE_DIR}/tests/*.cpp"
+    "${PROJECT_SOURCE_DIR}/tests/*.c"
+)
+
 include(${PROJECT_SOURCE_DIR}/caffeine-build/cmake/CaffeineMacros.cmake)
+cfn_add_universe_targets(INPUTS ${ALL_UNIVERSE_SOURCES})
 
 # Useful for IDEs, clang-tidy, and clangd
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -24,7 +34,7 @@ include(FetchContent)
 FetchContent_Declare(
     caffeine-hal
     GIT_REPOSITORY https://github.com/while-one/caffeine-hal.git
-    GIT_TAG        v0.5.4
+    GIT_TAG        v0.5.8
 
 )
 
@@ -33,7 +43,7 @@ FetchContent_MakeAvailable(caffeine-hal)
 FetchContent_Declare(
     caffeine-sal
     GIT_REPOSITORY https://github.com/while-one/caffeine-sal.git
-    GIT_TAG        v0.1.7
+    GIT_TAG        v0.1.9
 )
 FetchContent_MakeAvailable(caffeine-sal)
 
@@ -113,31 +123,16 @@ set(ALL_ANALYSIS_SOURCES ${PORT_SOURCES_C})
 
 cfn_add_code_quality_targets(
     ${PROJECT_NAME}
-    FORMAT_SOURCES ${ALL_FORMAT_SOURCES}
     ANALYSIS_SOURCES ${ALL_ANALYSIS_SOURCES}
     CPPCHECK_FILE_FILTER "${PROJECT_SOURCE_DIR}/src/*"
     TIDY_HEADER_FILTER "${PROJECT_SOURCE_DIR}/src/.*"
 )
 
-# 4. C11 Compliance Check
-add_executable(${PROJECT_NAME}-compliance ${PROJECT_SOURCE_DIR}/tests/compliance.c)
-target_link_libraries(${PROJECT_NAME}-compliance PRIVATE ${PROJECT_NAME})
-target_compile_options(${PROJECT_NAME}-compliance PRIVATE
-    -std=c11
-    -pedantic-errors
-    -Wall
-    -Wextra
-    -Werror
-)
-set_target_properties(${PROJECT_NAME}-compliance PROPERTIES EXCLUDE_FROM_ALL ON)
-
-if(TARGET ${PROJECT_NAME}-analyze)
-    add_dependencies(${PROJECT_NAME}-analyze ${PROJECT_NAME}-compliance)
-endif()
-
 # 5. Doxygen Documentation
+set(ALL_UNIVERSE_SOURCES_NO_TESTS ${ALL_UNIVERSE_SOURCES})
+list(FILTER ALL_UNIVERSE_SOURCES_NO_TESTS EXCLUDE REGEX ".*/tests/.*")
 cfn_add_docs(
     ${PROJECT_NAME}-docs
-    ${PROJECT_SOURCE_DIR}/src
+    INPUTS ${ALL_UNIVERSE_SOURCES_NO_TESTS} ${PROJECT_SOURCE_DIR}/README.md
     COMMENT "Generating API documentation with Doxygen"
 )

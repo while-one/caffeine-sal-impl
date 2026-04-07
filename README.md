@@ -26,9 +26,9 @@
 
 This repository contains concrete implementations for the abstract middleware services defined in the `caffeine-sal` header-only library. It acts as a collection of platform-agnostic device drivers (e.g., specific sensors, memory devices, displays) and utility modules (e.g., specific file systems, networking stacks) built strictly on top of the generic `caffeine-hal` interface.
 
-## Repository Structure
+## Directory Structure
 
-Implementations are organized by their service category:
+*   `caffeine-build/`: Submodule containing centralized build presets, toolchains, scripts, and hardware target definitions.
 *   `src/devices/`:
     *   `led/`: Basic LED driver (Sink/Source logic).
     *   `button/`: GPIO-based button with debounce.
@@ -38,6 +38,16 @@ Implementations are organized by their service category:
 *   `src/utilities/`:
     *   `cli/`: Command Line Interface.
     *   `collection/`: Linked List, Ring Buffer.
+
+---
+
+## Documentation
+
+The API reference for this repository is generated automatically via Doxygen and hosted on GitHub Pages.
+
+📚 **[View the Caffeine-SAL-Impl API Documentation](https://while-one.github.io/caffeine-sal-impl)**
+
+---
 
 ## Architecture
 
