@@ -43,7 +43,7 @@ FetchContent_MakeAvailable(caffeine-hal)
 FetchContent_Declare(
     caffeine-sal
     GIT_REPOSITORY https://github.com/while-one/caffeine-sal.git
-    GIT_TAG        v0.1.12
+    GIT_TAG        v0.1.13
 )
 FetchContent_MakeAvailable(caffeine-sal)
 
