@@ -61,11 +61,9 @@ static cfn_hal_error_code_t lsm6ds3_read_regs(const cfn_sal_phy_t *phy, uint8_t 
 
         /* Note: This assumes physical implementation handles CS via the device struct */
         /* For now, generic SPI transfer */
-        cfn_hal_spi_transaction_t xfr = { .tx_payload      = &addr,
-                                          .nbr_of_tx_bytes = 1,
-                                          .rx_payload      = data,
-                                          .nbr_of_rx_bytes = size,
-                                          .cs_pin          = dev->cs_pin };
+        cfn_hal_spi_transaction_t xfr = {
+            .tx_payload = &addr, .nbr_of_bytes = size, .rx_payload = data, .cs = dev->cs_pin
+        };
         /* Assuming cfn_hal_spi_xfr_polling exists and handles the transaction */
         return cfn_hal_spi_xfr_polling(dev->spi, &xfr, 100);
     }
@@ -88,7 +86,7 @@ static cfn_hal_error_code_t lsm6ds3_write_reg(const cfn_sal_phy_t *phy, uint8_t 
         uint8_t               buffer[2] = { reg & 0x7F, val }; /* Bit 0 is 0 for Write */
 
         cfn_hal_spi_transaction_t xfr   = {
-              .tx_payload = buffer, .nbr_of_tx_bytes = 2, .rx_payload = NULL, .nbr_of_rx_bytes = 0, .cs_pin = dev->cs_pin
+              .tx_payload = buffer, .nbr_of_bytes = 2, .rx_payload = NULL, .cs = dev->cs_pin
         };
         return cfn_hal_spi_xfr_polling(dev->spi, &xfr, 100);
     }
@@ -182,7 +180,7 @@ static cfn_hal_error_code_t lsm6ds3_accel_read_raw(cfn_sal_accel_t *driver, cfn_
     {
         return CFN_HAL_ERROR_BAD_PARAM;
     }
-    cfn_sal_lsm6ds3_t *lsm = CFN_HAL_CONTAINER_OF(driver, cfn_sal_lsm6ds3_t, accel);
+    const cfn_sal_lsm6ds3_t *lsm = CFN_HAL_CONTAINER_OF(driver, cfn_sal_lsm6ds3_t, accel);
 
     uint8_t              buffer[6];
     cfn_hal_error_code_t err = lsm6ds3_read_regs(lsm->combined_state.phy, LSM6DS3_REG_OUTX_L_XL, buffer, 6);
@@ -201,8 +199,8 @@ static cfn_hal_error_code_t lsm6ds3_accel_read_mg(cfn_sal_accel_t *driver, cfn_s
     cfn_hal_error_code_t err = lsm6ds3_accel_read_raw(driver, &raw);
     if (err == CFN_HAL_ERROR_OK)
     {
-        cfn_sal_lsm6ds3_t *lsm         = CFN_HAL_CONTAINER_OF(driver, cfn_sal_lsm6ds3_t, accel);
-        float              sensitivity = 0.061f; /* Default for 2g */
+        const cfn_sal_lsm6ds3_t *lsm         = CFN_HAL_CONTAINER_OF(driver, cfn_sal_lsm6ds3_t, accel);
+        float                    sensitivity = 0.061f; /* Default for 2g */
         switch (lsm->current_accel_range)
         {
             case CFN_SAL_ACCEL_RANGE_4G:
@@ -263,9 +261,9 @@ static cfn_hal_error_code_t lsm6ds3_accel_read_steps(cfn_sal_accel_t *driver, ui
     {
         return CFN_HAL_ERROR_BAD_PARAM;
     }
-    cfn_sal_lsm6ds3_t   *lsm = CFN_HAL_CONTAINER_OF(driver, cfn_sal_lsm6ds3_t, accel);
-    uint8_t              buffer[2];
-    cfn_hal_error_code_t err = lsm6ds3_read_regs(lsm->combined_state.phy, LSM6DS3_REG_STEP_COUNTER_L, buffer, 2);
+    const cfn_sal_lsm6ds3_t *lsm = CFN_HAL_CONTAINER_OF(driver, cfn_sal_lsm6ds3_t, accel);
+    uint8_t                  buffer[2];
+    cfn_hal_error_code_t     err = lsm6ds3_read_regs(lsm->combined_state.phy, LSM6DS3_REG_STEP_COUNTER_L, buffer, 2);
     if (err == CFN_HAL_ERROR_OK)
     {
         *steps = (uint32_t) ((buffer[1] << 8) | buffer[0]);
@@ -283,7 +281,7 @@ static cfn_hal_error_code_t lsm6ds3_gyro_read_raw(cfn_sal_gyro_sensor_t *driver,
     {
         return CFN_HAL_ERROR_BAD_PARAM;
     }
-    cfn_sal_lsm6ds3_t *lsm = CFN_HAL_CONTAINER_OF(driver, cfn_sal_lsm6ds3_t, gyro);
+    const cfn_sal_lsm6ds3_t *lsm = CFN_HAL_CONTAINER_OF(driver, cfn_sal_lsm6ds3_t, gyro);
 
     uint8_t              buffer[6];
     cfn_hal_error_code_t err = lsm6ds3_read_regs(lsm->combined_state.phy, LSM6DS3_REG_OUTX_L_G, buffer, 6);
@@ -302,8 +300,8 @@ static cfn_hal_error_code_t lsm6ds3_gyro_read_mdps(cfn_sal_gyro_sensor_t *driver
     cfn_hal_error_code_t err = lsm6ds3_gyro_read_raw(driver, &raw);
     if (err == CFN_HAL_ERROR_OK)
     {
-        cfn_sal_lsm6ds3_t *lsm         = CFN_HAL_CONTAINER_OF(driver, cfn_sal_lsm6ds3_t, gyro);
-        float              sensitivity = 8.75f; /* Default for 250 dps */
+        const cfn_sal_lsm6ds3_t *lsm         = CFN_HAL_CONTAINER_OF(driver, cfn_sal_lsm6ds3_t, gyro);
+        float                    sensitivity = 8.75f; /* Default for 250 dps */
         switch (lsm->current_gyro_range)
         {
             case CFN_SAL_GYRO_RANGE_125DPS:
