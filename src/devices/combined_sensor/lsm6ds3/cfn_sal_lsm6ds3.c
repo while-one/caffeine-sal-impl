@@ -7,6 +7,7 @@
 #include "cfn_hal_i2c.h"
 #include "cfn_hal_spi.h"
 #include <stddef.h>
+#include <string.h>
 
 /* -------------------------------------------------------------------------- */
 /* Constants & Definitions                                                    */
@@ -55,17 +56,29 @@ static cfn_hal_error_code_t lsm6ds3_read_regs(const cfn_sal_phy_t *phy, uint8_t 
     }
     else if (phy->type == CFN_HAL_PERIPHERAL_TYPE_SPI)
     {
-        cfn_hal_spi_device_t *dev     = (cfn_hal_spi_device_t *) phy->instance;
-        /* SPI read: Bit 0 is 1 for Read */
-        uint8_t addr                  = reg | 0x80;
+        cfn_hal_spi_device_t *dev  = (cfn_hal_spi_device_t *) phy->instance;
+        uint8_t               addr = reg | 0x80; /* SPI read: Bit 0 is 1 for Read */
 
-        /* Note: This assumes physical implementation handles CS via the device struct */
-        /* For now, generic SPI transfer */
+        uint8_t tx_buf[32];
+        uint8_t rx_buf[32];
+        if (size > 31)
+        {
+            return CFN_HAL_ERROR_OUT_OF_BOUND;
+        }
+
+        memset(tx_buf, 0, sizeof(tx_buf));
+        tx_buf[0]                     = addr;
+
         cfn_hal_spi_transaction_t xfr = {
-            .tx_payload = &addr, .nbr_of_bytes = size, .rx_payload = data, .cs = dev->cs_pin
+            .tx_payload = tx_buf, .rx_payload = rx_buf, .nbr_of_bytes = size + 1, .cs = dev->cs_pin
         };
-        /* Assuming cfn_hal_spi_xfr_polling exists and handles the transaction */
-        return cfn_hal_spi_xfr_polling(dev->spi, &xfr, 100);
+
+        cfn_hal_error_code_t err = cfn_hal_spi_xfr_polling(dev->spi, &xfr, 100);
+        if (err == CFN_HAL_ERROR_OK)
+        {
+            memcpy(data, &rx_buf[1], size);
+        }
+        return err;
     }
     return CFN_HAL_ERROR_NOT_SUPPORTED;
 }
@@ -86,7 +99,7 @@ static cfn_hal_error_code_t lsm6ds3_write_reg(const cfn_sal_phy_t *phy, uint8_t 
         uint8_t               buffer[2] = { reg & 0x7F, val }; /* Bit 0 is 0 for Write */
 
         cfn_hal_spi_transaction_t xfr   = {
-              .tx_payload = buffer, .nbr_of_bytes = 2, .rx_payload = NULL, .cs = dev->cs_pin
+              .tx_payload = buffer, .rx_payload = NULL, .nbr_of_bytes = 2, .cs = dev->cs_pin
         };
         return cfn_hal_spi_xfr_polling(dev->spi, &xfr, 100);
     }
