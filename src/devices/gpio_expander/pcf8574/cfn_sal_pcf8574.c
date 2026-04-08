@@ -11,13 +11,27 @@
 static cfn_hal_error_code_t pcf8574_write_port(cfn_sal_pcf8574_t *driver, uint8_t data)
 {
     cfn_hal_i2c_device_t *dev = (cfn_hal_i2c_device_t *) driver->phy.instance;
-    return cfn_hal_i2c_master_write(dev->i2c, dev->address, &data, 1, 100);
+    cfn_hal_i2c_transaction_t xfr = {
+        .slave_address = dev->address,
+        .tx_payload = &data,
+        .nbr_of_tx_bytes = 1,
+        .rx_payload = NULL,
+        .nbr_of_rx_bytes = 0
+    };
+    return cfn_hal_i2c_xfr_polling(dev->i2c, &xfr, 100);
 }
 
 static cfn_hal_error_code_t pcf8574_read_port(cfn_sal_pcf8574_t *driver, uint8_t *data)
 {
     cfn_hal_i2c_device_t *dev = (cfn_hal_i2c_device_t *) driver->phy.instance;
-    return cfn_hal_i2c_master_read(dev->i2c, dev->address, data, 1, 100);
+    cfn_hal_i2c_transaction_t xfr = {
+        .slave_address = dev->address,
+        .tx_payload = NULL,
+        .nbr_of_tx_bytes = 0,
+        .rx_payload = data,
+        .nbr_of_rx_bytes = 1
+    };
+    return cfn_hal_i2c_xfr_polling(dev->i2c, &xfr, 100);
 }
 
 /* VMT Implementations ----------------------------------------------*/
@@ -62,7 +76,7 @@ static cfn_hal_error_code_t pcf8574_pin_config(cfn_hal_gpio_t *driver, const cfn
     return pcf8574_write_port(pcf, pcf->port_output_shadow);
 }
 
-static cfn_hal_error_code_t pcf8574_pin_write(cfn_hal_gpio_t *driver, uint32_t pin_mask, cfn_hal_gpio_pin_state_t state)
+static cfn_hal_error_code_t pcf8574_pin_write(cfn_hal_gpio_t *driver, uint32_t pin_mask, cfn_hal_gpio_state_t state)
 {
     cfn_sal_pcf8574_t *pcf = CFN_HAL_CONTAINER_OF(driver, cfn_sal_pcf8574_t, hal_gpio);
 
@@ -76,7 +90,7 @@ static cfn_hal_error_code_t pcf8574_pin_write(cfn_hal_gpio_t *driver, uint32_t p
                 return CFN_HAL_ERROR_BAD_PARAM;
             }
 
-            if (state == CFN_HAL_GPIO_PIN_SET)
+            if (state == CFN_HAL_GPIO_STATE_HIGH)
             {
                 pcf->port_output_shadow |= CFN_HAL_BIT(i);
             }
@@ -90,7 +104,7 @@ static cfn_hal_error_code_t pcf8574_pin_write(cfn_hal_gpio_t *driver, uint32_t p
     return pcf8574_write_port(pcf, pcf->port_output_shadow);
 }
 
-static cfn_hal_error_code_t pcf8574_pin_read(cfn_hal_gpio_t *driver, uint32_t pin_mask, cfn_hal_gpio_pin_state_t *state)
+static cfn_hal_error_code_t pcf8574_pin_read(cfn_hal_gpio_t *driver, uint32_t pin_mask, cfn_hal_gpio_state_t *state)
 {
     cfn_sal_pcf8574_t   *pcf = CFN_HAL_CONTAINER_OF(driver, cfn_sal_pcf8574_t, hal_gpio);
     uint8_t              raw_data;
@@ -98,7 +112,7 @@ static cfn_hal_error_code_t pcf8574_pin_read(cfn_hal_gpio_t *driver, uint32_t pi
 
     if (error == CFN_HAL_ERROR_OK && state)
     {
-        *state = (raw_data & pin_mask) ? CFN_HAL_GPIO_PIN_SET : CFN_HAL_GPIO_PIN_RESET;
+        *state = (raw_data & pin_mask) ? CFN_HAL_GPIO_STATE_HIGH : CFN_HAL_GPIO_STATE_LOW;
     }
 
     return error;
@@ -115,7 +129,7 @@ static cfn_hal_error_code_t pcf8574_pin_toggle(cfn_hal_gpio_t *driver, uint32_t 
         return CFN_HAL_ERROR_BAD_PARAM;
     }
 
-    pcf->port_output_shadow ^= pin_mask;
+    pcf->port_output_shadow ^= (uint8_t) pin_mask;
     return pcf8574_write_port(pcf, pcf->port_output_shadow);
 }
 
@@ -140,7 +154,7 @@ cfn_hal_error_code_t cfn_sal_pcf8574_construct(cfn_sal_pcf8574_t *driver, const 
     }
 
     driver->phy = *phy;
-    cfn_hal_gpio_populate(&driver->hal_gpio, 0, NULL, &PCF8574_API, NULL, NULL, NULL, NULL);
+    cfn_hal_gpio_populate(&driver->hal_gpio, 0, NULL, &PCF8574_API, NULL, NULL, NULL);
 
     return CFN_HAL_ERROR_OK;
 }
