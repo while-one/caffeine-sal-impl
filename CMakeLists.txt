@@ -34,7 +34,7 @@ include(FetchContent)
 FetchContent_Declare(
     caffeine-hal
     GIT_REPOSITORY https://github.com/while-one/caffeine-hal.git
-    GIT_TAG        v0.5.8
+    GIT_TAG        v0.5.9
 
 )
 
@@ -43,7 +43,7 @@ FetchContent_MakeAvailable(caffeine-hal)
 FetchContent_Declare(
     caffeine-sal
     GIT_REPOSITORY https://github.com/while-one/caffeine-sal.git
-    GIT_TAG        v0.1.9
+    GIT_TAG        v0.1.10
 )
 FetchContent_MakeAvailable(caffeine-sal)
 
