@@ -43,9 +43,8 @@ class Lsm6ds3Test : public ::testing::Test
             } // WHO_AM_I
             return CFN_HAL_ERROR_OK;
         };
-        mock_i2c_api.mem_write = [](cfn_hal_i2c_t                       *d,
-                                    const cfn_hal_i2c_mem_transaction_t *xfr,
-                                    uint32_t t) -> cfn_hal_error_code_t
+        mock_i2c_api.mem_write =
+            [](cfn_hal_i2c_t *d, const cfn_hal_i2c_mem_transaction_t *xfr, uint32_t t) -> cfn_hal_error_code_t
         {
             (void) d;
             (void) xfr;
