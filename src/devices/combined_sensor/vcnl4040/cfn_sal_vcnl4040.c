@@ -11,19 +11,19 @@
 /* Constants & Definitions                                                    */
 /* -------------------------------------------------------------------------- */
 
-#define VCNL4040_REG_ALS_CONF       0x00
-#define VCNL4040_REG_ALS_THDH       0x01
-#define VCNL4040_REG_ALS_THDL       0x02
-#define VCNL4040_REG_PS_CONF1_2     0x03
-#define VCNL4040_REG_PS_CONF3_MS    0x04
-#define VCNL4040_REG_PS_THDL        0x06
-#define VCNL4040_REG_PS_THDH        0x07
-#define VCNL4040_REG_PS_DATA        0x08
-#define VCNL4040_REG_ALS_DATA       0x09
-#define VCNL4040_REG_INT_FLAG       0x0B
-#define VCNL4040_REG_ID             0x0C
+#define VCNL4040_REG_ALS_CONF    0x00
+#define VCNL4040_REG_ALS_THDH    0x01
+#define VCNL4040_REG_ALS_THDL    0x02
+#define VCNL4040_REG_PS_CONF1_2  0x03
+#define VCNL4040_REG_PS_CONF3_MS 0x04
+#define VCNL4040_REG_PS_THDL     0x06
+#define VCNL4040_REG_PS_THDH     0x07
+#define VCNL4040_REG_PS_DATA     0x08
+#define VCNL4040_REG_ALS_DATA    0x09
+#define VCNL4040_REG_INT_FLAG    0x0B
+#define VCNL4040_REG_ID          0x0C
 
-#define VCNL4040_ID_EXPECTED        0x0186
+#define VCNL4040_ID_EXPECTED 0x0186
 
 /* -------------------------------------------------------------------------- */
 /* Internal Helpers                                                           */
@@ -45,21 +45,17 @@ static cfn_sal_vcnl4040_t *get_vcnl4040_from_base(cfn_hal_driver_t *base)
 static cfn_hal_error_code_t vcnl4040_read_reg16(cfn_hal_i2c_t *i2c, uint16_t addr, uint8_t reg, uint16_t *val)
 {
     cfn_hal_i2c_mem_transaction_t xfr = {
-        .dev_addr = addr,
-        .mem_addr = reg,
-        .mem_addr_size = 1,
-        .data = (uint8_t *)val,
-        .size = 2
+        .dev_addr = addr, .mem_addr = reg, .mem_addr_size = 1, .data = (uint8_t *) val, .size = 2
     };
-    /* Since we're on a LE system likely, but the VCNL sends LSB first, reading 2 bytes into uint16_t on ARM works directly. 
-     * However, to be strictly pedantic and portable, we should read into a byte array and assemble. */
+    /* Since we're on a LE system likely, but the VCNL sends LSB first, reading 2 bytes into uint16_t on ARM works
+     * directly. However, to be strictly pedantic and portable, we should read into a byte array and assemble. */
     uint8_t buffer[2];
-    xfr.data = buffer;
-    
+    xfr.data                 = buffer;
+
     cfn_hal_error_code_t err = cfn_hal_i2c_mem_read(i2c, &xfr, 100);
     if (err == CFN_HAL_ERROR_OK)
     {
-        *val = (uint16_t)buffer[0] | ((uint16_t)buffer[1] << 8);
+        *val = (uint16_t) buffer[0] | ((uint16_t) buffer[1] << 8);
     }
     return err;
 }
@@ -67,15 +63,11 @@ static cfn_hal_error_code_t vcnl4040_read_reg16(cfn_hal_i2c_t *i2c, uint16_t add
 static cfn_hal_error_code_t vcnl4040_write_reg16(cfn_hal_i2c_t *i2c, uint16_t addr, uint8_t reg, uint16_t val)
 {
     uint8_t buffer[2];
-    buffer[0] = val & 0xFF;         /* LSB */
-    buffer[1] = (val >> 8) & 0xFF;  /* MSB */
+    buffer[0]                         = val & 0xFF;        /* LSB */
+    buffer[1]                         = (val >> 8) & 0xFF; /* MSB */
 
     cfn_hal_i2c_mem_transaction_t xfr = {
-        .dev_addr = addr,
-        .mem_addr = reg,
-        .mem_addr_size = 1,
-        .data = buffer,
-        .size = 2
+        .dev_addr = addr, .mem_addr = reg, .mem_addr_size = 1, .data = buffer, .size = 2
     };
     return cfn_hal_i2c_mem_write(i2c, &xfr, 100);
 }
@@ -103,7 +95,7 @@ static cfn_hal_error_code_t vcnl4040_shared_init(cfn_hal_driver_t *base)
         }
 
         uint16_t id_val = 0;
-        err = vcnl4040_read_reg16(dev->i2c, dev->address, VCNL4040_REG_ID, &id_val);
+        err             = vcnl4040_read_reg16(dev->i2c, dev->address, VCNL4040_REG_ID, &id_val);
         if (err != CFN_HAL_ERROR_OK || id_val != VCNL4040_ID_EXPECTED)
         {
             cfn_hal_i2c_deinit(dev->i2c);
@@ -113,11 +105,17 @@ static cfn_hal_error_code_t vcnl4040_shared_init(cfn_hal_driver_t *base)
         /* Power on ALS and PS with basic defaults */
         /* ALS_CONF: SD=0 (enable), IT=0 (80ms) */
         err = vcnl4040_write_reg16(dev->i2c, dev->address, VCNL4040_REG_ALS_CONF, 0x0000);
-        if (err != CFN_HAL_ERROR_OK) return err;
+        if (err != CFN_HAL_ERROR_OK)
+        {
+            return err;
+        }
 
         /* PS_CONF: PS_SD=0 (enable), PS_IT=0 (1T), PS_HD=0 */
         err = vcnl4040_write_reg16(dev->i2c, dev->address, VCNL4040_REG_PS_CONF1_2, 0x0000);
-        if (err != CFN_HAL_ERROR_OK) return err;
+        if (err != CFN_HAL_ERROR_OK)
+        {
+            return err;
+        }
 
         vcnl->combined_state.hw_initialized = true;
     }
@@ -141,7 +139,7 @@ static cfn_hal_error_code_t vcnl4040_shared_deinit(cfn_hal_driver_t *base)
         if (vcnl->combined_state.init_ref_count == 0)
         {
             cfn_hal_i2c_device_t *dev = (cfn_hal_i2c_device_t *) vcnl->combined_state.phy->instance;
-            
+
             /* Put to sleep: SD=1 */
             (void) vcnl4040_write_reg16(dev->i2c, dev->address, VCNL4040_REG_ALS_CONF, 0x0001);
             (void) vcnl4040_write_reg16(dev->i2c, dev->address, VCNL4040_REG_PS_CONF1_2, 0x0001);
@@ -165,26 +163,26 @@ static cfn_hal_error_code_t vcnl4040_light_read_raw(cfn_sal_light_sensor_t *driv
         return CFN_HAL_ERROR_BAD_PARAM;
     }
     cfn_sal_vcnl4040_t   *vcnl = CFN_HAL_CONTAINER_OF(driver, cfn_sal_vcnl4040_t, light);
-    cfn_hal_i2c_device_t *dev = (cfn_hal_i2c_device_t *) vcnl->combined_state.phy->instance;
+    cfn_hal_i2c_device_t *dev  = (cfn_hal_i2c_device_t *) vcnl->combined_state.phy->instance;
 
-    uint16_t val = 0;
-    cfn_hal_error_code_t err = vcnl4040_read_reg16(dev->i2c, dev->address, VCNL4040_REG_ALS_DATA, &val);
+    uint16_t             val   = 0;
+    cfn_hal_error_code_t err   = vcnl4040_read_reg16(dev->i2c, dev->address, VCNL4040_REG_ALS_DATA, &val);
     if (err == CFN_HAL_ERROR_OK)
     {
         vcnl->cached_lux = val;
-        *raw_out = (uint32_t)val;
+        *raw_out         = (uint32_t) val;
     }
     return err;
 }
 
 static cfn_hal_error_code_t vcnl4040_light_read_lux(cfn_sal_light_sensor_t *driver, float *lux_out)
 {
-    uint32_t raw = 0;
+    uint32_t             raw = 0;
     cfn_hal_error_code_t err = vcnl4040_light_read_raw(driver, &raw);
     if (err == CFN_HAL_ERROR_OK && lux_out)
     {
         /* Assuming 80ms integration time, resolution is 0.1 lux/step */
-        *lux_out = (float)raw * 0.1f;
+        *lux_out = (float) raw * 0.1f;
     }
     return err;
 }
@@ -192,12 +190,12 @@ static cfn_hal_error_code_t vcnl4040_light_read_lux(cfn_sal_light_sensor_t *driv
 static cfn_hal_error_code_t vcnl4040_light_set_thresholds(cfn_sal_light_sensor_t *driver, uint32_t low, uint32_t high)
 {
     cfn_sal_vcnl4040_t   *vcnl = CFN_HAL_CONTAINER_OF(driver, cfn_sal_vcnl4040_t, light);
-    cfn_hal_i2c_device_t *dev = (cfn_hal_i2c_device_t *) vcnl->combined_state.phy->instance;
+    cfn_hal_i2c_device_t *dev  = (cfn_hal_i2c_device_t *) vcnl->combined_state.phy->instance;
 
-    cfn_hal_error_code_t err = vcnl4040_write_reg16(dev->i2c, dev->address, VCNL4040_REG_ALS_THDL, (uint16_t)low);
+    cfn_hal_error_code_t err   = vcnl4040_write_reg16(dev->i2c, dev->address, VCNL4040_REG_ALS_THDL, (uint16_t) low);
     if (err == CFN_HAL_ERROR_OK)
     {
-        err = vcnl4040_write_reg16(dev->i2c, dev->address, VCNL4040_REG_ALS_THDH, (uint16_t)high);
+        err = vcnl4040_write_reg16(dev->i2c, dev->address, VCNL4040_REG_ALS_THDH, (uint16_t) high);
     }
     return err;
 }
@@ -218,7 +216,6 @@ static cfn_hal_error_code_t vcnl4040_light_set_persistence(cfn_sal_light_sensor_
     return CFN_HAL_ERROR_OK;
 }
 
-
 /* -------------------------------------------------------------------------- */
 /* Proximity Implementation                                                   */
 /* -------------------------------------------------------------------------- */
@@ -230,28 +227,28 @@ static cfn_hal_error_code_t vcnl4040_prox_read_raw(cfn_sal_prox_sensor_t *driver
         return CFN_HAL_ERROR_BAD_PARAM;
     }
     cfn_sal_vcnl4040_t   *vcnl = CFN_HAL_CONTAINER_OF(driver, cfn_sal_vcnl4040_t, prox);
-    cfn_hal_i2c_device_t *dev = (cfn_hal_i2c_device_t *) vcnl->combined_state.phy->instance;
+    cfn_hal_i2c_device_t *dev  = (cfn_hal_i2c_device_t *) vcnl->combined_state.phy->instance;
 
-    uint16_t val = 0;
-    cfn_hal_error_code_t err = vcnl4040_read_reg16(dev->i2c, dev->address, VCNL4040_REG_PS_DATA, &val);
+    uint16_t             val   = 0;
+    cfn_hal_error_code_t err   = vcnl4040_read_reg16(dev->i2c, dev->address, VCNL4040_REG_PS_DATA, &val);
     if (err == CFN_HAL_ERROR_OK)
     {
         vcnl->cached_prox = val;
-        *raw_out = (uint32_t)val;
+        *raw_out          = (uint32_t) val;
     }
     return err;
 }
 
 static cfn_hal_error_code_t vcnl4040_prox_read_distance(cfn_sal_prox_sensor_t *driver, float *mm_out)
 {
-    /* The VCNL4040 doesn't provide true distance natively. 
-       Usually this is handled via an empirical LUT or curve fit. 
+    /* The VCNL4040 doesn't provide true distance natively.
+       Usually this is handled via an empirical LUT or curve fit.
        Returning raw casted as dummy data for the abstract interface. */
-    uint32_t raw = 0;
+    uint32_t             raw = 0;
     cfn_hal_error_code_t err = vcnl4040_prox_read_raw(driver, &raw);
     if (err == CFN_HAL_ERROR_OK && mm_out)
     {
-        *mm_out = (float)raw;
+        *mm_out = (float) raw;
     }
     return err;
 }
@@ -267,16 +264,15 @@ static cfn_hal_error_code_t vcnl4040_prox_set_led_current(cfn_sal_prox_sensor_t 
 static cfn_hal_error_code_t vcnl4040_prox_set_thresholds(cfn_sal_prox_sensor_t *driver, uint32_t low, uint32_t high)
 {
     cfn_sal_vcnl4040_t   *vcnl = CFN_HAL_CONTAINER_OF(driver, cfn_sal_vcnl4040_t, prox);
-    cfn_hal_i2c_device_t *dev = (cfn_hal_i2c_device_t *) vcnl->combined_state.phy->instance;
+    cfn_hal_i2c_device_t *dev  = (cfn_hal_i2c_device_t *) vcnl->combined_state.phy->instance;
 
-    cfn_hal_error_code_t err = vcnl4040_write_reg16(dev->i2c, dev->address, VCNL4040_REG_PS_THDL, (uint16_t)low);
+    cfn_hal_error_code_t err   = vcnl4040_write_reg16(dev->i2c, dev->address, VCNL4040_REG_PS_THDL, (uint16_t) low);
     if (err == CFN_HAL_ERROR_OK)
     {
-        err = vcnl4040_write_reg16(dev->i2c, dev->address, VCNL4040_REG_PS_THDH, (uint16_t)high);
+        err = vcnl4040_write_reg16(dev->i2c, dev->address, VCNL4040_REG_PS_THDH, (uint16_t) high);
     }
     return err;
 }
-
 
 static const cfn_sal_light_sensor_api_t LIGHT_API = {
     .base = {

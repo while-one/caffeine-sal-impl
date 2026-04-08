@@ -39,9 +39,8 @@ class Vcnl4040Test : public ::testing::Test
             (void) d;
             return CFN_HAL_ERROR_OK;
         };
-        mock_i2c_api.mem_read = [](cfn_hal_i2c_t                       *d,
-                                   const cfn_hal_i2c_mem_transaction_t *mem_xfr,
-                                   uint32_t                             timeout) -> cfn_hal_error_code_t
+        mock_i2c_api.mem_read =
+            [](cfn_hal_i2c_t *d, const cfn_hal_i2c_mem_transaction_t *mem_xfr, uint32_t timeout) -> cfn_hal_error_code_t
         {
             (void) d;
             (void) timeout;
@@ -62,9 +61,8 @@ class Vcnl4040Test : public ::testing::Test
             }
             return CFN_HAL_ERROR_OK;
         };
-        mock_i2c_api.mem_write = [](cfn_hal_i2c_t                       *d,
-                                    const cfn_hal_i2c_mem_transaction_t *mem_xfr,
-                                    uint32_t                             timeout) -> cfn_hal_error_code_t
+        mock_i2c_api.mem_write =
+            [](cfn_hal_i2c_t *d, const cfn_hal_i2c_mem_transaction_t *mem_xfr, uint32_t timeout) -> cfn_hal_error_code_t
         {
             (void) d;
             (void) timeout;
