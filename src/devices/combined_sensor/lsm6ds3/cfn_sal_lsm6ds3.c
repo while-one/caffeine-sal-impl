@@ -7,6 +7,7 @@
 #include "cfn_hal_i2c.h"
 #include "cfn_hal_spi.h"
 #include <stddef.h>
+#include <string.h>
 
 /* -------------------------------------------------------------------------- */
 /* Constants & Definitions                                                    */
