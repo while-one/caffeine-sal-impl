@@ -121,7 +121,7 @@ cfn_hal_error_code_t cfn_sal_timekeeping_construct(cfn_sal_timekeeping_t        
     return CFN_HAL_ERROR_OK;
 }
 
-cfn_hal_error_code_t cfn_sal_timekeeping_destruct(cfn_sal_timekeeping_t *driver)
+cfn_hal_error_code_t cfn_sal_timekeeping_destruct(const cfn_sal_timekeeping_t *driver)
 {
     if (!driver)
     {

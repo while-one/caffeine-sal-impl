@@ -189,8 +189,8 @@ static cfn_hal_error_code_t lsm6ds3_accel_read_mg(cfn_sal_accel_t *driver, cfn_s
     cfn_hal_error_code_t err = lsm6ds3_accel_read_raw(driver, &raw);
     if (err == CFN_HAL_ERROR_OK)
     {
-        cfn_sal_lsm6ds3_t *lsm         = CFN_HAL_CONTAINER_OF(driver, cfn_sal_lsm6ds3_t, accel);
-        float              sensitivity = 0.061f; /* Default for 2g */
+        const cfn_sal_lsm6ds3_t *lsm         = CFN_HAL_CONTAINER_OF(driver, cfn_sal_lsm6ds3_t, accel);
+        float                    sensitivity = 0.061f; /* Default for 2g */
         switch (lsm->current_accel_range)
         {
             case CFN_SAL_ACCEL_RANGE_4G:
@@ -248,9 +248,9 @@ static cfn_hal_error_code_t lsm6ds3_accel_set_range(cfn_sal_accel_t *driver, cfn
 
 static cfn_hal_error_code_t lsm6ds3_accel_read_steps(cfn_sal_accel_t *driver, uint32_t *steps)
 {
-    cfn_sal_lsm6ds3_t   *lsm = CFN_HAL_CONTAINER_OF(driver, cfn_sal_lsm6ds3_t, accel);
-    uint8_t              buffer[2];
-    cfn_hal_error_code_t err = lsm6ds3_read_regs(lsm->combined_state.phy, LSM6DS3_REG_STEP_CNT_L, buffer, 2);
+    const cfn_sal_lsm6ds3_t *lsm = CFN_HAL_CONTAINER_OF(driver, cfn_sal_lsm6ds3_t, accel);
+    uint8_t                  buffer[2];
+    cfn_hal_error_code_t     err = lsm6ds3_read_regs(lsm->combined_state.phy, LSM6DS3_REG_STEP_CNT_L, buffer, 2);
     if (err == CFN_HAL_ERROR_OK)
     {
         *steps = (uint32_t) ((buffer[1] << 8) | buffer[0]);
@@ -305,8 +305,8 @@ static cfn_hal_error_code_t lsm6ds3_gyro_read_mdps(cfn_sal_gyro_sensor_t *driver
     cfn_hal_error_code_t err = lsm6ds3_gyro_read_raw(driver, &raw);
     if (err == CFN_HAL_ERROR_OK)
     {
-        cfn_sal_lsm6ds3_t *lsm         = CFN_HAL_CONTAINER_OF(driver, cfn_sal_lsm6ds3_t, gyro);
-        float              sensitivity = 8.75f; /* Default for 250dps */
+        const cfn_sal_lsm6ds3_t *lsm         = CFN_HAL_CONTAINER_OF(driver, cfn_sal_lsm6ds3_t, gyro);
+        float                    sensitivity = 8.75f; /* Default for 250dps */
         switch (lsm->current_gyro_range)
         {
             case CFN_SAL_GYRO_RANGE_500DPS:
