@@ -279,6 +279,21 @@ static cfn_hal_error_code_t bme280_shared_deinit(cfn_hal_driver_t *base)
 
 static cfn_hal_error_code_t bme280_perform_read(cfn_sal_bme280_t *bme)
 {
+    /* Check cache validity (10ms window) */
+    uint64_t now         = 0;
+    bool     use_caching = false;
+
+    if (bme->temp.base.dependency != NULL)
+    {
+        cfn_sal_timekeeping_get_ms((cfn_sal_timekeeping_t *) bme->temp.base.dependency, &now);
+        use_caching = true;
+    }
+
+    if (use_caching && bme->combined_state.hw_initialized && (now - bme->last_read_timestamp_ms < 10))
+    {
+        return CFN_HAL_ERROR_OK;
+    }
+
     uint8_t              buffer[8];
     cfn_hal_error_code_t err = bme280_read_regs(bme->combined_state.phy, BME280_REG_PRESS_MSB, buffer, 8);
     if (err != CFN_HAL_ERROR_OK)

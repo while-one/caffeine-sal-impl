@@ -4,6 +4,8 @@
  */
 
 #include "utilities/cfn_sal_timekeeping.h"
+#include "cfn_hal_timer.h"
+#include "cfn_hal_rtc.h"
 #include <time.h>
 
 #if defined(__unix__) || defined(__APPLE__)
@@ -14,18 +16,32 @@
 
 static cfn_hal_error_code_t timekeeping_set_time(cfn_sal_timekeeping_t *driver, time_t timestamp)
 {
-    CFN_HAL_UNUSED(driver);
-    /* In a real implementation, this would update an internal offset or RTC */
-    CFN_HAL_UNUSED(timestamp);
+    if (driver->phy && driver->phy->type == CFN_HAL_PERIPHERAL_TYPE_RTC)
+    {
+        cfn_hal_rtc_t *rtc     = (cfn_hal_rtc_t *) driver->phy->handle;
+        struct tm     *tm_info = gmtime(&timestamp);
+        return cfn_hal_rtc_set_time(rtc, tm_info);
+    }
     return CFN_HAL_ERROR_NOT_SUPPORTED;
 }
 
 static cfn_hal_error_code_t timekeeping_get_time(cfn_sal_timekeeping_t *driver, time_t *timestamp_out)
 {
-    CFN_HAL_UNUSED(driver);
     if (!timestamp_out)
     {
         return CFN_HAL_ERROR_BAD_PARAM;
+    }
+
+    if (driver->phy && driver->phy->type == CFN_HAL_PERIPHERAL_TYPE_RTC)
+    {
+        cfn_hal_rtc_t       *rtc = (cfn_hal_rtc_t *) driver->phy->handle;
+        struct tm            tm_info;
+        cfn_hal_error_code_t err = cfn_hal_rtc_get_time(rtc, &tm_info);
+        if (err == CFN_HAL_ERROR_OK)
+        {
+            *timestamp_out = mktime(&tm_info);
+        }
+        return err;
     }
 
 #if defined(__unix__) || defined(__APPLE__)
@@ -38,10 +54,16 @@ static cfn_hal_error_code_t timekeeping_get_time(cfn_sal_timekeeping_t *driver, 
 
 static cfn_hal_error_code_t timekeeping_get_ms(cfn_sal_timekeeping_t *driver, uint64_t *ms_out)
 {
-    CFN_HAL_UNUSED(driver);
     if (!ms_out)
     {
         return CFN_HAL_ERROR_BAD_PARAM;
+    }
+
+    if (driver->phy && driver->phy->type == CFN_HAL_PERIPHERAL_TYPE_TIMER)
+    {
+        cfn_hal_timer_t *tim = (cfn_hal_timer_t *) driver->phy->handle;
+        /* Channel 0 used by convention for system uptime if not specified */
+        return cfn_hal_timer_get_ticks_u64(tim, 0, ms_out);
     }
 
 #if defined(__unix__) || defined(__APPLE__)
@@ -50,7 +72,6 @@ static cfn_hal_error_code_t timekeeping_get_ms(cfn_sal_timekeeping_t *driver, ui
     *ms_out = (uint64_t) tv.tv_sec * 1000ULL + (uint64_t) tv.tv_usec / 1000ULL;
     return CFN_HAL_ERROR_OK;
 #else
-    /* Bare metal: This should ideally call a HAL-level global uptime or be backed by a timer */
     return CFN_HAL_ERROR_NOT_SUPPORTED;
 #endif
 }

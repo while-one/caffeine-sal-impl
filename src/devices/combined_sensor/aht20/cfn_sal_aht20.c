@@ -140,8 +140,16 @@ static cfn_hal_error_code_t aht20_shared_deinit(cfn_hal_driver_t *base)
 static cfn_hal_error_code_t aht20_perform_read(cfn_sal_aht20_t *aht)
 {
     /* Check cache validity (10ms window) */
-    uint64_t now = cfn_hal_time_get_ms();
-    if (aht->combined_state.hw_initialized && (now - aht->last_read_timestamp_ms < 10))
+    uint64_t now         = 0;
+    bool     use_caching = false;
+
+    if (aht->temp.base.dependency != NULL)
+    {
+        cfn_sal_timekeeping_get_ms((cfn_sal_timekeeping_t *) aht->temp.base.dependency, &now);
+        use_caching = true;
+    }
+
+    if (use_caching && aht->combined_state.hw_initialized && (now - aht->last_read_timestamp_ms < 10))
     {
         return CFN_HAL_ERROR_OK;
     }

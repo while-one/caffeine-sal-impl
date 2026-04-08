@@ -297,8 +297,16 @@ static cfn_hal_error_code_t lsm6ds3_gyro_read_raw(cfn_sal_gyro_sensor_t *driver,
     cfn_sal_lsm6ds3_t *lsm = CFN_HAL_CONTAINER_OF(driver, cfn_sal_lsm6ds3_t, gyro);
 
     /* Check cache validity (5ms window) */
-    uint64_t now           = cfn_hal_time_get_ms();
-    if (lsm->combined_state.hw_initialized && (now - lsm->last_read_timestamp_gyro_ms < 5))
+    uint64_t now           = 0;
+    bool     use_caching   = false;
+
+    if (lsm->gyro.base.dependency != NULL)
+    {
+        cfn_sal_timekeeping_get_ms((cfn_sal_timekeeping_t *) lsm->gyro.base.dependency, &now);
+        use_caching = true;
+    }
+
+    if (use_caching && lsm->combined_state.hw_initialized && (now - lsm->last_read_timestamp_gyro_ms < 5))
     {
         *data_out = lsm->cached_gyro_raw;
         return CFN_HAL_ERROR_OK;
@@ -399,6 +407,23 @@ cfn_sal_lsm6ds3_construct(cfn_sal_lsm6ds3_t *sensor, const cfn_sal_phy_t *phy, c
     sensor->gyro.base.dependency  = time_source;
 
     return CFN_HAL_ERROR_OK;
+}
+
+cfn_hal_error_code_t cfn_sal_lsm6ds3_destruct(const cfn_sal_lsm6ds3_t *sensor)
+{
+    CFN_HAL_UNUSED(sensor);
+    return CFN_HAL_ERROR_OK;
+}
+R_OK;
+}
+EL_API, phy, NULL, NULL, NULL);
+cfn_sal_gyro_sensor_populate(&sensor->gyro, 0, &GYRO_API, phy, NULL, NULL, NULL);
+
+/* Inject time source as a dependency for caching */
+sensor->accel.base.dependency = time_source;
+sensor->gyro.base.dependency  = time_source;
+
+return CFN_HAL_ERROR_OK;
 }
 
 cfn_hal_error_code_t cfn_sal_lsm6ds3_destruct(const cfn_sal_lsm6ds3_t *sensor)

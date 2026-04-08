@@ -171,8 +171,16 @@ static cfn_hal_error_code_t opt4048_shared_deinit(cfn_hal_driver_t *base)
 static cfn_hal_error_code_t opt4048_perform_read(cfn_sal_opt4048_t *opt)
 {
     /* Check cache validity (10ms window) */
-    uint64_t now = cfn_hal_time_get_ms();
-    if (opt->combined_state.hw_initialized && (now - opt->last_read_timestamp_ms < 10))
+    uint64_t now         = 0;
+    bool     use_caching = false;
+
+    if (opt->light.base.dependency != NULL)
+    {
+        cfn_sal_timekeeping_get_ms((cfn_sal_timekeeping_t *) opt->light.base.dependency, &now);
+        use_caching = true;
+    }
+
+    if (use_caching && opt->combined_state.hw_initialized && (now - opt->last_read_timestamp_ms < 10))
     {
         return CFN_HAL_ERROR_OK;
     }
