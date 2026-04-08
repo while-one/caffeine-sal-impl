@@ -11,9 +11,9 @@
 class Lsm6ds3Test : public ::testing::Test
 {
   protected:
-    cfn_sal_lsm6ds3_t     lsm{};
-    cfn_sal_phy_t         phy_i2c{};
-    cfn_hal_i2c_device_t  i2c_dev{};
+    cfn_sal_lsm6ds3_t    lsm{};
+    cfn_sal_phy_t        phy_i2c{};
+    cfn_hal_i2c_device_t i2c_dev{};
 
     cfn_hal_i2c_t        mock_i2c{};
     cfn_hal_i2c_api_t    mock_i2c_api{};
@@ -22,26 +22,31 @@ class Lsm6ds3Test : public ::testing::Test
     void SetUp() override
     {
         memset(&lsm, 0, sizeof(lsm));
-        
+
         /* Setup I2C Mock */
         memset(&mock_i2c, 0, sizeof(mock_i2c));
         memset(&mock_i2c_api, 0, sizeof(mock_i2c_api));
-        
+
         mock_i2c_api.base.init = [](cfn_hal_driver_t *d) -> cfn_hal_error_code_t { return CFN_HAL_ERROR_OK; };
-        mock_i2c_api.mem_read = [](cfn_hal_i2c_t *d, const cfn_hal_i2c_mem_transaction_t *xfr, uint32_t t) -> cfn_hal_error_code_t {
-            if (xfr->mem_addr == 0x0F) { xfr->data[0] = 0x69; } // WHO_AM_I
+        mock_i2c_api.mem_read =
+            [](cfn_hal_i2c_t *d, const cfn_hal_i2c_mem_transaction_t *xfr, uint32_t t) -> cfn_hal_error_code_t
+        {
+            if (xfr->mem_addr == 0x0F)
+            {
+                xfr->data[0] = 0x69;
+            } // WHO_AM_I
             return CFN_HAL_ERROR_OK;
         };
-        mock_i2c_api.mem_write = [](cfn_hal_i2c_t *d, const cfn_hal_i2c_mem_transaction_t *xfr, uint32_t t) -> cfn_hal_error_code_t {
-            return CFN_HAL_ERROR_OK;
-        };
+        mock_i2c_api.mem_write = [](cfn_hal_i2c_t                       *d,
+                                    const cfn_hal_i2c_mem_transaction_t *xfr,
+                                    uint32_t t) -> cfn_hal_error_code_t { return CFN_HAL_ERROR_OK; };
 
         cfn_hal_i2c_populate(&mock_i2c, 0, nullptr, &mock_i2c_api, nullptr, &mock_i2c_cfg, nullptr, nullptr);
-        i2c_dev.i2c = &mock_i2c;
-        i2c_dev.address = 0x6A;
+        i2c_dev.i2c      = &mock_i2c;
+        i2c_dev.address  = 0x6A;
 
         phy_i2c.instance = &i2c_dev;
-        phy_i2c.type = CFN_HAL_PERIPHERAL_TYPE_I2C;
+        phy_i2c.type     = CFN_HAL_PERIPHERAL_TYPE_I2C;
 
         cfn_sal_lsm6ds3_construct(&lsm, &phy_i2c);
     }

@@ -43,7 +43,7 @@ typedef struct
     /* Internal Caching */
     cfn_sal_accel_data_t cached_accel_raw;
     cfn_sal_gyro_data_t  cached_gyro_raw;
-    
+
     /* Config tracking */
     cfn_sal_accel_range_t current_accel_range;
     cfn_sal_gyro_range_t  current_gyro_range;
