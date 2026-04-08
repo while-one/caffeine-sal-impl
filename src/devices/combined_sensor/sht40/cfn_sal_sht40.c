@@ -35,7 +35,7 @@ static uint8_t crc8(const uint8_t *data, size_t len)
     for (size_t i = 0; i < len; i++)
     {
         crc ^= data[i];
-        for (int j = 0; j < 8; j++)
+        for (size_t j = 0; j < 8; j++)
         {
             if (crc & 0x80)
             {

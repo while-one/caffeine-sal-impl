@@ -103,7 +103,7 @@ static cfn_hal_error_code_t opt4048_shared_init(cfn_hal_driver_t *base)
     if (opt->combined_state.init_ref_count == 0)
     {
         cfn_hal_i2c_device_t *dev = (cfn_hal_i2c_device_t *) opt->combined_state.phy->instance;
-        if (!dev || !dev->i2c)
+        if (!dev->i2c)
         {
             return CFN_HAL_ERROR_BAD_PARAM;
         }
@@ -120,7 +120,7 @@ static cfn_hal_error_code_t opt4048_shared_init(cfn_hal_driver_t *base)
         if (err != CFN_HAL_ERROR_OK || ((id_val >> 8) != (OPT4048_DEVICE_ID_VAL >> 8)))
         {
             cfn_hal_i2c_deinit(dev->i2c);
-            return CFN_HAL_ERROR_GENERAL;
+            return CFN_HAL_ERROR_FAIL;
         }
 
         /* Power on with Auto Range and Continuous Operating Mode */
@@ -185,7 +185,7 @@ static cfn_hal_error_code_t opt4048_perform_read(cfn_sal_opt4048_t *opt)
         return err;
     }
 
-    for (int i = 0; i < 8; i++)
+    for (size_t i = 0; i < 8; i++)
     {
         regs[i] = ((uint16_t) buffer[i * 2] << 8) | buffer[(i * 2) + 1];
     }
