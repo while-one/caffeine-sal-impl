@@ -39,14 +39,19 @@ class Bme280Test : public ::testing::Test
             (void) d;
             return CFN_HAL_ERROR_OK;
         };
-        mock_i2c_api.mem_read = [](cfn_hal_i2c_t *d, const cfn_hal_i2c_mem_transaction_t *xfr, uint32_t t) -> cfn_hal_error_code_t
+        mock_i2c_api.mem_read =
+            [](cfn_hal_i2c_t *d, const cfn_hal_i2c_mem_transaction_t *xfr, uint32_t t) -> cfn_hal_error_code_t
         {
             (void) d;
             (void) t;
-            if (xfr->mem_addr == 0xD0) { xfr->data[0] = 0x60; } /* WHO_AM_I */
+            if (xfr->mem_addr == 0xD0)
+            {
+                xfr->data[0] = 0x60;
+            } /* WHO_AM_I */
             return CFN_HAL_ERROR_OK;
         };
-        mock_i2c_api.mem_write = [](cfn_hal_i2c_t *d, const cfn_hal_i2c_mem_transaction_t *xfr, uint32_t t) -> cfn_hal_error_code_t
+        mock_i2c_api.mem_write =
+            [](cfn_hal_i2c_t *d, const cfn_hal_i2c_mem_transaction_t *xfr, uint32_t t) -> cfn_hal_error_code_t
         {
             (void) d;
             (void) xfr;
@@ -56,11 +61,11 @@ class Bme280Test : public ::testing::Test
 
         cfn_hal_i2c_populate(&mock_i2c, 0, nullptr, &mock_i2c_api, nullptr, &mock_i2c_cfg, nullptr, nullptr);
 
-        i2c_dev.i2c = &mock_i2c;
+        i2c_dev.i2c     = &mock_i2c;
         i2c_dev.address = CFN_SAL_BME280_ADDR_DEFAULT;
 
-        phy.instance = &i2c_dev;
-        phy.type = CFN_HAL_PERIPHERAL_TYPE_I2C;
+        phy.instance    = &i2c_dev;
+        phy.type        = CFN_HAL_PERIPHERAL_TYPE_I2C;
 
         /* Construct the composite sensor */
         cfn_sal_bme280_construct(&bme, &phy);
