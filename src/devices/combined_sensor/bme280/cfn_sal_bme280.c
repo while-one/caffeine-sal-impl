@@ -7,6 +7,7 @@
 #include "cfn_hal_i2c.h"
 #include "cfn_hal_spi.h"
 #include <stddef.h>
+#include <string.h>
 
 /* -------------------------------------------------------------------------- */
 /* Constants & Definitions                                                    */
@@ -64,14 +65,29 @@ static cfn_hal_error_code_t bme280_read_regs(const cfn_sal_phy_t *phy, uint8_t r
     }
     else if (phy->type == CFN_HAL_PERIPHERAL_TYPE_SPI)
     {
-        cfn_hal_spi_device_t     *dev  = (cfn_hal_spi_device_t *) phy->instance;
-        uint8_t                   addr = reg | 0x80;
-        cfn_hal_spi_transaction_t xfr  = { .tx_payload      = &addr,
-                                           .nbr_of_tx_bytes = 1,
-                                           .rx_payload      = data,
-                                           .nbr_of_rx_bytes = size,
-                                           .cs_pin          = dev->cs_pin };
-        return cfn_hal_spi_xfr_polling(dev->spi, &xfr, 100);
+        cfn_hal_spi_device_t *dev  = (cfn_hal_spi_device_t *) phy->instance;
+        uint8_t               addr = reg | 0x80;
+
+        uint8_t tx_buf[32];
+        uint8_t rx_buf[32];
+        if (size > 31)
+        {
+            return CFN_HAL_ERROR_OUT_OF_BOUND;
+        }
+
+        memset(tx_buf, 0, sizeof(tx_buf));
+        tx_buf[0]                     = addr;
+
+        cfn_hal_spi_transaction_t xfr = {
+            .tx_payload = tx_buf, .rx_payload = rx_buf, .nbr_of_bytes = size + 1, .cs = dev->cs_pin
+        };
+
+        cfn_hal_error_code_t err = cfn_hal_spi_xfr_polling(dev->spi, &xfr, 100);
+        if (err == CFN_HAL_ERROR_OK)
+        {
+            memcpy(data, &rx_buf[1], size);
+        }
+        return err;
     }
     return CFN_HAL_ERROR_NOT_SUPPORTED;
 }
@@ -91,7 +107,7 @@ static cfn_hal_error_code_t bme280_write_reg(const cfn_sal_phy_t *phy, uint8_t r
         cfn_hal_spi_device_t     *dev       = (cfn_hal_spi_device_t *) phy->instance;
         uint8_t                   buffer[2] = { reg & 0x7F, val };
         cfn_hal_spi_transaction_t xfr       = {
-                  .tx_payload = buffer, .nbr_of_tx_bytes = 2, .rx_payload = NULL, .nbr_of_rx_bytes = 0, .cs_pin = dev->cs_pin
+                  .tx_payload = buffer, .rx_payload = NULL, .nbr_of_bytes = 2, .cs = dev->cs_pin
         };
         return cfn_hal_spi_xfr_polling(dev->spi, &xfr, 100);
     }
@@ -102,19 +118,19 @@ static cfn_hal_error_code_t bme280_write_reg(const cfn_sal_phy_t *phy, uint8_t r
 /* Compensation Math (Bosch Sensortec Reference)                              */
 /* -------------------------------------------------------------------------- */
 
-static int32_t bme280_compensate_T(cfn_sal_bme280_t *bme, int32_t adc_T)
+static int32_t bme280_compensate_t(cfn_sal_bme280_t *bme, int32_t adc_t)
 {
-    int32_t var1, var2, T;
-    var1 = ((((adc_T >> 3) - ((int32_t) bme->calib.dig_T1 << 1))) * ((int32_t) bme->calib.dig_T2)) >> 11;
-    var2 = (((((adc_T >> 4) - ((int32_t) bme->calib.dig_T1)) * ((adc_T >> 4) - ((int32_t) bme->calib.dig_T1))) >> 12) *
+    int32_t var1, var2, t;
+    var1 = ((((adc_t >> 3) - ((int32_t) bme->calib.dig_T1 << 1))) * ((int32_t) bme->calib.dig_T2)) >> 11;
+    var2 = (((((adc_t >> 4) - ((int32_t) bme->calib.dig_T1)) * ((adc_t >> 4) - ((int32_t) bme->calib.dig_T1))) >> 12) *
             ((int32_t) bme->calib.dig_T3)) >>
            14;
     bme->calib.t_fine = var1 + var2;
-    T                 = (bme->calib.t_fine * 5 + 128) >> 8;
-    return T;
+    t                 = (bme->calib.t_fine * 5 + 128) >> 8;
+    return t;
 }
 
-static uint32_t bme280_compensate_P(cfn_sal_bme280_t *bme, int32_t adc_P)
+static uint32_t bme280_compensate_p(cfn_sal_bme280_t *bme, int32_t adc_p)
 {
     int64_t var1, var2, p;
     var1 = ((int64_t) bme->calib.t_fine) - 128000;
@@ -127,7 +143,7 @@ static uint32_t bme280_compensate_P(cfn_sal_bme280_t *bme, int32_t adc_P)
     {
         return 0; // avoid exception caused by division by zero
     }
-    p    = 1048576 - adc_P;
+    p    = 1048576 - adc_p;
     p    = (((p << 31) - var2) * 3125) / var1;
     var1 = (((int64_t) bme->calib.dig_P9) * (p >> 13) * (p >> 13)) >> 25;
     var2 = (((int64_t) bme->calib.dig_P8) * p) >> 19;
@@ -135,12 +151,12 @@ static uint32_t bme280_compensate_P(cfn_sal_bme280_t *bme, int32_t adc_P)
     return (uint32_t) p;
 }
 
-static uint32_t bme280_compensate_H(cfn_sal_bme280_t *bme, int32_t adc_H)
+static uint32_t bme280_compensate_h(cfn_sal_bme280_t *bme, int32_t adc_h)
 {
     int32_t v_x1_u32r;
     v_x1_u32r = (bme->calib.t_fine - ((int32_t) 76800));
     v_x1_u32r =
-        (((((adc_H << 14) - (((int32_t) bme->calib.dig_H4) << 20) - (((int32_t) bme->calib.dig_H5) * v_x1_u32r)) +
+        (((((adc_h << 14) - (((int32_t) bme->calib.dig_H4) << 20) - (((int32_t) bme->calib.dig_H5) * v_x1_u32r)) +
            ((int32_t) 16384)) >>
           15) *
          (((((((v_x1_u32r * ((int32_t) bme->calib.dig_H6)) >> 10) *
@@ -205,23 +221,23 @@ static cfn_hal_error_code_t bme280_shared_init(cfn_hal_driver_t *base)
             return CFN_HAL_ERROR_FAIL;
         }
 
-        bme->calib.dig_T1  = (calib1[1] << 8) | calib1[0];
-        bme->calib.dig_T2  = (calib1[3] << 8) | calib1[2];
-        bme->calib.dig_T3  = (calib1[5] << 8) | calib1[4];
-        bme->calib.dig_P1  = (calib1[7] << 8) | calib1[0];
-        bme->calib.dig_P2  = (calib1[9] << 8) | calib1[8];
-        bme->calib.dig_P3  = (calib1[11] << 8) | calib1[10];
-        bme->calib.dig_P4  = (calib1[13] << 8) | calib1[12];
-        bme->calib.dig_P5  = (calib1[15] << 8) | calib1[14];
-        bme->calib.dig_P6  = (calib1[17] << 8) | calib1[16];
-        bme->calib.dig_P7  = (calib1[19] << 8) | calib1[18];
-        bme->calib.dig_P8  = (calib1[21] << 8) | calib1[20];
-        bme->calib.dig_P9  = (calib1[23] << 8) | calib1[22];
+        bme->calib.dig_T1  = (uint16_t) ((calib1[1] << 8) | calib1[0]);
+        bme->calib.dig_T2  = (int16_t) ((calib1[3] << 8) | calib1[2]);
+        bme->calib.dig_T3  = (int16_t) ((calib1[5] << 8) | calib1[4]);
+        bme->calib.dig_P1  = (uint16_t) ((calib1[7] << 8) | calib1[6]);
+        bme->calib.dig_P2  = (int16_t) ((calib1[9] << 8) | calib1[8]);
+        bme->calib.dig_P3  = (int16_t) ((calib1[11] << 8) | calib1[10]);
+        bme->calib.dig_P4  = (int16_t) ((calib1[13] << 8) | calib1[12]);
+        bme->calib.dig_P5  = (int16_t) ((calib1[15] << 8) | calib1[14]);
+        bme->calib.dig_P6  = (int16_t) ((calib1[17] << 8) | calib1[16]);
+        bme->calib.dig_P7  = (int16_t) ((calib1[19] << 8) | calib1[18]);
+        bme->calib.dig_P8  = (int16_t) ((calib1[21] << 8) | calib1[20]);
+        bme->calib.dig_P9  = (int16_t) ((calib1[23] << 8) | calib1[22]);
         bme->calib.dig_H1  = calib1[25];
-        bme->calib.dig_H2  = (calib2[1] << 8) | calib2[0];
+        bme->calib.dig_H2  = (int16_t) ((calib2[1] << 8) | calib2[0]);
         bme->calib.dig_H3  = calib2[2];
-        bme->calib.dig_H4  = (calib2[3] << 4) | (calib2[4] & 0x0F);
-        bme->calib.dig_H5  = (calib2[5] << 4) | (calib2[4] >> 4);
+        bme->calib.dig_H4  = (int16_t) ((calib2[3] << 4) | (calib2[4] & 0x0F));
+        bme->calib.dig_H5  = (int16_t) ((calib2[5] << 4) | (calib2[4] >> 4));
         bme->calib.dig_H6  = (int8_t) calib2[6];
 
         /* Default Config: 1x oversampling, normal mode */
@@ -270,17 +286,17 @@ static cfn_hal_error_code_t bme280_perform_read(cfn_sal_bme280_t *bme)
         return err;
     }
 
-    int32_t adc_P     = (int32_t) (((uint32_t) buffer[0] << 12) | ((uint32_t) buffer[1] << 4) | (buffer[2] >> 4));
-    int32_t adc_T     = (int32_t) (((uint32_t) buffer[3] << 12) | ((uint32_t) buffer[4] << 4) | (buffer[5] >> 4));
-    int32_t adc_H     = (int32_t) (((uint32_t) buffer[6] << 8) | buffer[7]);
+    int32_t adc_p     = (int32_t) (((uint32_t) buffer[0] << 12) | ((uint32_t) buffer[1] << 4) | (buffer[2] >> 4));
+    int32_t adc_t     = (int32_t) (((uint32_t) buffer[3] << 12) | ((uint32_t) buffer[4] << 4) | (buffer[5] >> 4));
+    int32_t adc_h     = (int32_t) (((uint32_t) buffer[6] << 8) | buffer[7]);
 
-    int32_t  comp_T   = bme280_compensate_T(bme, adc_T);
-    uint32_t comp_P   = bme280_compensate_P(bme, adc_P);
-    uint32_t comp_H   = bme280_compensate_H(bme, adc_H);
+    int32_t  comp_t   = bme280_compensate_t(bme, adc_t);
+    uint32_t comp_p   = bme280_compensate_p(bme, adc_p);
+    uint32_t comp_h   = bme280_compensate_h(bme, adc_h);
 
-    bme->cached_temp  = (float) comp_T / 100.0f;
-    bme->cached_press = (float) comp_P / 256.0f / 100.0f; // hPa
-    bme->cached_hum   = (float) comp_H / 1024.0f;
+    bme->cached_temp  = (float) comp_t / 100.0f;
+    bme->cached_press = (float) comp_p / 256.0f / 100.0f; // hPa
+    bme->cached_hum   = (float) comp_h / 1024.0f;
 
     return CFN_HAL_ERROR_OK;
 }
