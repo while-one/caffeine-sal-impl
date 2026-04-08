@@ -139,6 +139,13 @@ static cfn_hal_error_code_t aht20_shared_deinit(cfn_hal_driver_t *base)
 
 static cfn_hal_error_code_t aht20_perform_read(cfn_sal_aht20_t *aht)
 {
+    /* Check cache validity (10ms window) */
+    uint64_t now = cfn_hal_time_get_ms();
+    if (aht->combined_state.hw_initialized && (now - aht->last_read_timestamp_ms < 10))
+    {
+        return CFN_HAL_ERROR_OK;
+    }
+
     cfn_hal_i2c_device_t *dev        = (cfn_hal_i2c_device_t *) aht->combined_state.phy->instance;
 
     uint8_t                   cmd[3] = { AHT20_CMD_TRIGGER, 0x33, 0x00 };
@@ -176,11 +183,12 @@ static cfn_hal_error_code_t aht20_perform_read(cfn_sal_aht20_t *aht)
     }
 
     /* Unpack 20-bit data */
-    uint32_t raw_hum         = ((uint32_t) buffer[1] << 12) | ((uint32_t) buffer[2] << 4) | (buffer[3] >> 4);
-    uint32_t raw_temp        = ((uint32_t) (buffer[3] & 0x0F) << 16) | ((uint32_t) buffer[4] << 8) | buffer[5];
+    uint32_t raw_hum            = ((uint32_t) buffer[1] << 12) | ((uint32_t) buffer[2] << 4) | (buffer[3] >> 4);
+    uint32_t raw_temp           = ((uint32_t) (buffer[3] & 0x0F) << 16) | ((uint32_t) buffer[4] << 8) | buffer[5];
 
-    aht->cached_hum_rh       = ((float) raw_hum * 100.0f) / 1048576.0f;
-    aht->cached_temp_celsius = (((float) raw_temp * 200.0f) / 1048576.0f) - 50.0f;
+    aht->cached_hum_rh          = ((float) raw_hum * 100.0f) / 1048576.0f;
+    aht->cached_temp_celsius    = (((float) raw_temp * 200.0f) / 1048576.0f) - 50.0f;
+    aht->last_read_timestamp_ms = now;
 
     return CFN_HAL_ERROR_OK;
 }
@@ -316,11 +324,24 @@ cfn_hal_error_code_t cfn_sal_aht20_construct(cfn_sal_aht20_t *sensor, const cfn_
     sensor->combined_state.phy            = phy;
     sensor->combined_state.init_ref_count = 0;
     sensor->combined_state.hw_initialized = false;
+    sensor->last_read_timestamp_ms        = 0;
 
     cfn_sal_temp_sensor_populate(&sensor->temp, 0, &TEMP_API, phy, NULL, NULL, NULL);
     cfn_sal_hum_sensor_populate(&sensor->hum, 0, &HUM_API, phy, NULL, NULL, NULL);
 
     return CFN_HAL_ERROR_OK;
+}
+
+cfn_hal_error_code_t cfn_sal_aht20_destruct(const cfn_sal_aht20_t *sensor)
+{
+    CFN_HAL_UNUSED(sensor);
+    return CFN_HAL_ERROR_OK;
+}
+ource as a dependency for caching */
+    sensor->temp.base.dependency = time_source;
+sensor->hum.base.dependency      = time_source;
+
+return CFN_HAL_ERROR_OK;
 }
 
 cfn_hal_error_code_t cfn_sal_aht20_destruct(const cfn_sal_aht20_t *sensor)

@@ -118,8 +118,12 @@ static cfn_hal_error_code_t sht40_shared_deinit(cfn_hal_driver_t *base)
 
 static cfn_hal_error_code_t sht40_perform_read(cfn_sal_sht40_t *sht)
 {
-    /* Check cache validity - Dummy timestamp check for now as we don't have global time API yet */
-    /* Implementation of actual caching will be refined once cfn_hal_time is standardized */
+    /* Check cache validity (10ms window) */
+    uint64_t now = cfn_hal_time_get_ms();
+    if (sht->combined_state.hw_initialized && (now - sht->last_read_timestamp_ms < 10))
+    {
+        return CFN_HAL_ERROR_OK;
+    }
 
     cfn_hal_i2c_device_t *dev     = (cfn_hal_i2c_device_t *) sht->combined_state.phy->instance;
 
@@ -159,6 +163,8 @@ static cfn_hal_error_code_t sht40_perform_read(cfn_sal_sht40_t *sht)
     {
         sht->cached_hum_rh = 100.0f;
     }
+
+    sht->last_read_timestamp_ms = cfn_hal_time_get_ms();
 
     return CFN_HAL_ERROR_OK;
 }
@@ -365,8 +371,8 @@ static const cfn_sal_hum_sensor_api_t HUM_API = {
 /* -------------------------------------------------------------------------- */
 /* Public API Implementation                                                  */
 /* -------------------------------------------------------------------------- */
-
-cfn_hal_error_code_t cfn_sal_sht40_construct(cfn_sal_sht40_t *sensor, const cfn_sal_phy_t *phy)
+cfn_hal_error_code_t
+cfn_sal_sht40_construct(cfn_sal_sht40_t *sensor, const cfn_sal_phy_t *phy, cfn_sal_timekeeping_t *time_source)
 {
     if (!sensor || !phy || !phy->instance)
     {
@@ -376,9 +382,14 @@ cfn_hal_error_code_t cfn_sal_sht40_construct(cfn_sal_sht40_t *sensor, const cfn_
     sensor->combined_state.phy            = phy;
     sensor->combined_state.init_ref_count = 0;
     sensor->combined_state.hw_initialized = false;
+    sensor->last_read_timestamp_ms        = 0;
 
     cfn_sal_temp_sensor_populate(&sensor->temp, 0, &TEMP_API, phy, NULL, NULL, NULL);
     cfn_sal_hum_sensor_populate(&sensor->hum, 0, &HUM_API, phy, NULL, NULL, NULL);
+
+    /* Inject time source as a dependency for caching */
+    sensor->temp.base.dependency = time_source;
+    sensor->hum.base.dependency  = time_source;
 
     return CFN_HAL_ERROR_OK;
 }

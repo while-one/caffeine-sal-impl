@@ -16,6 +16,7 @@ extern "C"
 #include "devices/cfn_sal_gyro_sensor.h"
 #include "cfn_hal_i2c.h"
 #include "cfn_hal_spi.h"
+#include "utilities/cfn_sal_timekeeping.h"
 
 /* -------------------------------------------------------------------------- */
 /* Constants                                                                  */
@@ -41,6 +42,8 @@ typedef struct
     cfn_sal_combined_state_t combined_state; /*!< Shared Framework State (PHY, ref count) */
 
     /* Internal Caching */
+    uint64_t             last_read_timestamp_accel_ms;
+    uint64_t             last_read_timestamp_gyro_ms;
     cfn_sal_accel_data_t cached_accel_raw;
     cfn_sal_gyro_data_t  cached_gyro_raw;
 
@@ -56,11 +59,14 @@ typedef struct
 /**
  * @brief LSM6DS3 monolithic constructor.
  *
- * @param sensor Pointer to the composite sensor structure.
- * @param phy    Pointer to the physical interface mapping (Must point to cfn_hal_i2c_device_t or cfn_hal_spi_device_t).
+ * @param sensor      Pointer to the composite sensor structure.
+ * @param phy         Pointer to the physical interface mapping (Must point to cfn_hal_i2c_device_t or
+ * cfn_hal_spi_device_t).
+ * @param time_source Optional pointer to a timekeeping service for caching logic.
  * @return CFN_HAL_ERROR_OK on success.
  */
-cfn_hal_error_code_t cfn_sal_lsm6ds3_construct(cfn_sal_lsm6ds3_t *sensor, const cfn_sal_phy_t *phy);
+cfn_hal_error_code_t
+cfn_sal_lsm6ds3_construct(cfn_sal_lsm6ds3_t *sensor, const cfn_sal_phy_t *phy, cfn_sal_timekeeping_t *time_source);
 
 /**
  * @brief LSM6DS3 destructor.

@@ -298,6 +298,8 @@ static cfn_hal_error_code_t bme280_perform_read(cfn_sal_bme280_t *bme)
     bme->cached_press = (float) comp_p / 256.0f / 100.0f; // hPa
     bme->cached_hum   = (float) comp_h / 1024.0f;
 
+    bme->last_read_timestamp_ms = now;
+
     return CFN_HAL_ERROR_OK;
 }
 
@@ -369,7 +371,8 @@ static const cfn_sal_pressure_sensor_api_t PRESS_API = {
 /* Public API                                                                 */
 /* -------------------------------------------------------------------------- */
 
-cfn_hal_error_code_t cfn_sal_bme280_construct(cfn_sal_bme280_t *sensor, const cfn_sal_phy_t *phy)
+cfn_hal_error_code_t
+cfn_sal_bme280_construct(cfn_sal_bme280_t *sensor, const cfn_sal_phy_t *phy, cfn_sal_timekeeping_t *time_source)
 {
     if (!sensor || !phy || !phy->instance)
     {
@@ -379,12 +382,28 @@ cfn_hal_error_code_t cfn_sal_bme280_construct(cfn_sal_bme280_t *sensor, const cf
     sensor->combined_state.phy            = phy;
     sensor->combined_state.init_ref_count = 0;
     sensor->combined_state.hw_initialized = false;
+    sensor->last_read_timestamp_ms        = 0;
 
     cfn_sal_temp_sensor_populate(&sensor->temp, 0, &TEMP_API, phy, NULL, NULL, NULL);
     cfn_sal_hum_sensor_populate(&sensor->hum, 0, &HUM_API, phy, NULL, NULL, NULL);
     cfn_sal_pressure_sensor_populate(&sensor->press, 0, &PRESS_API, phy, NULL, NULL, NULL);
 
+    /* Inject time source as a dependency for caching */
+    sensor->temp.base.dependency  = time_source;
+    sensor->hum.base.dependency   = time_source;
+    sensor->press.base.dependency = time_source;
+
     return CFN_HAL_ERROR_OK;
+}
+
+cfn_hal_error_code_t cfn_sal_bme280_destruct(const cfn_sal_bme280_t *sensor)
+{
+    CFN_HAL_UNUSED(sensor);
+    return CFN_HAL_ERROR_OK;
+}
+L, NULL);
+
+return CFN_HAL_ERROR_OK;
 }
 
 cfn_hal_error_code_t cfn_sal_bme280_destruct(const cfn_sal_bme280_t *sensor)

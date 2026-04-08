@@ -67,7 +67,7 @@ class Sht40Test : public ::testing::Test
         phy.instance    = &i2c_dev;
         phy.type        = CFN_HAL_PERIPHERAL_TYPE_I2C;
 
-        cfn_sal_sht40_construct(&sht, &phy);
+        cfn_sal_sht40_construct(&sht, &phy, NULL);
     }
 };
 

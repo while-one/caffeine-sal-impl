@@ -294,15 +294,25 @@ static cfn_hal_error_code_t lsm6ds3_gyro_read_raw(cfn_sal_gyro_sensor_t *driver,
     {
         return CFN_HAL_ERROR_BAD_PARAM;
     }
-    const cfn_sal_lsm6ds3_t *lsm = CFN_HAL_CONTAINER_OF(driver, cfn_sal_lsm6ds3_t, gyro);
+    cfn_sal_lsm6ds3_t *lsm = CFN_HAL_CONTAINER_OF(driver, cfn_sal_lsm6ds3_t, gyro);
+
+    /* Check cache validity (5ms window) */
+    uint64_t now           = cfn_hal_time_get_ms();
+    if (lsm->combined_state.hw_initialized && (now - lsm->last_read_timestamp_gyro_ms < 5))
+    {
+        *data_out = lsm->cached_gyro_raw;
+        return CFN_HAL_ERROR_OK;
+    }
 
     uint8_t              buffer[6];
     cfn_hal_error_code_t err = lsm6ds3_read_regs(lsm->combined_state.phy, LSM6DS3_REG_OUTX_L_G, buffer, 6);
     if (err == CFN_HAL_ERROR_OK)
     {
-        data_out->x = (int16_t) ((buffer[1] << 8) | buffer[0]);
-        data_out->y = (int16_t) ((buffer[3] << 8) | buffer[2]);
-        data_out->z = (int16_t) ((buffer[5] << 8) | buffer[4]);
+        lsm->cached_gyro_raw.x           = (int16_t) ((buffer[1] << 8) | buffer[0]);
+        lsm->cached_gyro_raw.y           = (int16_t) ((buffer[3] << 8) | buffer[2]);
+        lsm->cached_gyro_raw.z           = (int16_t) ((buffer[5] << 8) | buffer[4]);
+        *data_out                        = lsm->cached_gyro_raw;
+        lsm->last_read_timestamp_gyro_ms = now;
     }
     return err;
 }
@@ -364,8 +374,8 @@ static const cfn_sal_gyro_sensor_api_t GYRO_API = {
 /* -------------------------------------------------------------------------- */
 /* Public API Implementation                                                  */
 /* -------------------------------------------------------------------------- */
-
-cfn_hal_error_code_t cfn_sal_lsm6ds3_construct(cfn_sal_lsm6ds3_t *sensor, const cfn_sal_phy_t *phy)
+cfn_hal_error_code_t
+cfn_sal_lsm6ds3_construct(cfn_sal_lsm6ds3_t *sensor, const cfn_sal_phy_t *phy, cfn_sal_timekeeping_t *time_source)
 {
     if (!sensor || !phy || !phy->instance)
     {
@@ -375,12 +385,18 @@ cfn_hal_error_code_t cfn_sal_lsm6ds3_construct(cfn_sal_lsm6ds3_t *sensor, const 
     sensor->combined_state.phy            = phy;
     sensor->combined_state.init_ref_count = 0;
     sensor->combined_state.hw_initialized = false;
+    sensor->last_read_timestamp_accel_ms  = 0;
+    sensor->last_read_timestamp_gyro_ms   = 0;
 
     sensor->current_accel_range           = CFN_SAL_ACCEL_RANGE_2G;
     sensor->current_gyro_range            = CFN_SAL_GYRO_RANGE_250DPS;
 
     cfn_sal_accel_populate(&sensor->accel, 0, &ACCEL_API, phy, NULL, NULL, NULL);
     cfn_sal_gyro_sensor_populate(&sensor->gyro, 0, &GYRO_API, phy, NULL, NULL, NULL);
+
+    /* Inject time source as a dependency for caching */
+    sensor->accel.base.dependency = time_source;
+    sensor->gyro.base.dependency  = time_source;
 
     return CFN_HAL_ERROR_OK;
 }
@@ -389,4 +405,6 @@ cfn_hal_error_code_t cfn_sal_lsm6ds3_destruct(const cfn_sal_lsm6ds3_t *sensor)
 {
     CFN_HAL_UNUSED(sensor);
     return CFN_HAL_ERROR_OK;
+}
+R_OK;
 }

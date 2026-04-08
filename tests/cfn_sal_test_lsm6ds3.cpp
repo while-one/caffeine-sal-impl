@@ -59,7 +59,7 @@ class Lsm6ds3Test : public ::testing::Test
         phy_i2c.instance = &i2c_dev;
         phy_i2c.type     = CFN_HAL_PERIPHERAL_TYPE_I2C;
 
-        cfn_sal_lsm6ds3_construct(&lsm, &phy_i2c);
+        cfn_sal_lsm6ds3_construct(&lsm, &phy_i2c, NULL);
     }
 };
 

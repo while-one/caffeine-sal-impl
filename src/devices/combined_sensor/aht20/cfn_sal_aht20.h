@@ -14,6 +14,7 @@ extern "C"
 #include "cfn_sal.h"
 #include "devices/cfn_sal_temp_sensor.h"
 #include "devices/cfn_sal_hum_sensor.h"
+#include "utilities/cfn_sal_timekeeping.h"
 
 /* -------------------------------------------------------------------------- */
 /* Constants                                                                  */
@@ -36,7 +37,7 @@ typedef struct
     cfn_sal_combined_state_t combined_state; /*!< Shared Framework State (PHY, ref count) */
 
     /* Internal Caching */
-    uint32_t last_read_timestamp_ms;
+    uint64_t last_read_timestamp_ms;
     float    cached_temp_celsius;
     float    cached_hum_rh;
 } cfn_sal_aht20_t;
@@ -48,11 +49,13 @@ typedef struct
 /**
  * @brief AHT20 monolithic constructor.
  *
- * @param sensor Pointer to the composite sensor structure.
- * @param phy    Pointer to the physical interface mapping (Must point to cfn_hal_i2c_device_t in instance).
+ * @param sensor      Pointer to the composite sensor structure.
+ * @param phy         Pointer to the physical interface mapping (Must point to cfn_hal_i2c_device_t in instance).
+ * @param time_source Optional pointer to a timekeeping service for caching logic.
  * @return CFN_HAL_ERROR_OK on success.
  */
-cfn_hal_error_code_t cfn_sal_aht20_construct(cfn_sal_aht20_t *sensor, const cfn_sal_phy_t *phy);
+cfn_hal_error_code_t
+cfn_sal_aht20_construct(cfn_sal_aht20_t *sensor, const cfn_sal_phy_t *phy, cfn_sal_timekeeping_t *time_source);
 
 /**
  * @brief AHT20 destructor.
