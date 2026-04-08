@@ -83,7 +83,7 @@ static cfn_hal_error_code_t vcnl4040_shared_init(cfn_hal_driver_t *base)
     if (vcnl->combined_state.init_ref_count == 0)
     {
         cfn_hal_i2c_device_t *dev = (cfn_hal_i2c_device_t *) vcnl->combined_state.phy->instance;
-        if (!dev || !dev->i2c)
+        if (!dev->i2c)
         {
             return CFN_HAL_ERROR_BAD_PARAM;
         }
@@ -99,7 +99,7 @@ static cfn_hal_error_code_t vcnl4040_shared_init(cfn_hal_driver_t *base)
         if (err != CFN_HAL_ERROR_OK || id_val != VCNL4040_ID_EXPECTED)
         {
             cfn_hal_i2c_deinit(dev->i2c);
-            return CFN_HAL_ERROR_GENERAL; /* Use general error if ID mismatch */
+            return CFN_HAL_ERROR_FAIL; /* Use general error if ID mismatch */
         }
 
         /* Power on ALS and PS with basic defaults */
