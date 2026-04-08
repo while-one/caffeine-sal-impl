@@ -10,27 +10,23 @@
 
 static cfn_hal_error_code_t pcf8574_write_port(cfn_sal_pcf8574_t *driver, uint8_t data)
 {
-    cfn_hal_i2c_device_t *dev = (cfn_hal_i2c_device_t *) driver->phy.instance;
-    cfn_hal_i2c_transaction_t xfr = {
-        .slave_address = dev->address,
-        .tx_payload = &data,
-        .nbr_of_tx_bytes = 1,
-        .rx_payload = NULL,
-        .nbr_of_rx_bytes = 0
-    };
+    cfn_hal_i2c_device_t     *dev = (cfn_hal_i2c_device_t *) driver->phy.instance;
+    cfn_hal_i2c_transaction_t xfr = { .slave_address   = dev->address,
+                                      .tx_payload      = &data,
+                                      .nbr_of_tx_bytes = 1,
+                                      .rx_payload      = NULL,
+                                      .nbr_of_rx_bytes = 0 };
     return cfn_hal_i2c_xfr_polling(dev->i2c, &xfr, 100);
 }
 
 static cfn_hal_error_code_t pcf8574_read_port(cfn_sal_pcf8574_t *driver, uint8_t *data)
 {
-    cfn_hal_i2c_device_t *dev = (cfn_hal_i2c_device_t *) driver->phy.instance;
-    cfn_hal_i2c_transaction_t xfr = {
-        .slave_address = dev->address,
-        .tx_payload = NULL,
-        .nbr_of_tx_bytes = 0,
-        .rx_payload = data,
-        .nbr_of_rx_bytes = 1
-    };
+    cfn_hal_i2c_device_t     *dev = (cfn_hal_i2c_device_t *) driver->phy.instance;
+    cfn_hal_i2c_transaction_t xfr = { .slave_address   = dev->address,
+                                      .tx_payload      = NULL,
+                                      .nbr_of_tx_bytes = 0,
+                                      .rx_payload      = data,
+                                      .nbr_of_rx_bytes = 1 };
     return cfn_hal_i2c_xfr_polling(dev->i2c, &xfr, 100);
 }
 

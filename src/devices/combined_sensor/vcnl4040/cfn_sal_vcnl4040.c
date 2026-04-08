@@ -28,11 +28,7 @@
 static cfn_hal_error_code_t vcnl4040_write_reg16(cfn_hal_i2c_t *i2c, uint16_t addr, uint8_t reg, uint16_t val)
 {
     cfn_hal_i2c_mem_transaction_t xfr = {
-        .dev_addr = addr,
-        .mem_addr = reg,
-        .mem_addr_size = 1,
-        .data = (uint8_t*)&val,
-        .size = 2
+        .dev_addr = addr, .mem_addr = reg, .mem_addr_size = 1, .data = (uint8_t *) &val, .size = 2
     };
     return cfn_hal_i2c_mem_write(i2c, &xfr, 100);
 }
@@ -40,11 +36,7 @@ static cfn_hal_error_code_t vcnl4040_write_reg16(cfn_hal_i2c_t *i2c, uint16_t ad
 static cfn_hal_error_code_t vcnl4040_read_reg16(cfn_hal_i2c_t *i2c, uint16_t addr, uint8_t reg, uint16_t *val)
 {
     cfn_hal_i2c_mem_transaction_t xfr = {
-        .dev_addr = addr,
-        .mem_addr = reg,
-        .mem_addr_size = 1,
-        .data = (uint8_t*)val,
-        .size = 2
+        .dev_addr = addr, .mem_addr = reg, .mem_addr_size = 1, .data = (uint8_t *) val, .size = 2
     };
     return cfn_hal_i2c_mem_read(i2c, &xfr, 100);
 }
@@ -153,8 +145,8 @@ static cfn_hal_error_code_t vcnl4040_perform_read(cfn_sal_vcnl4040_t *vcnl)
 
     cfn_hal_i2c_device_t *dev = (cfn_hal_i2c_device_t *) vcnl->combined_state.phy->instance;
 
-    uint16_t             lux  = 0;
-    uint16_t             prox = 0;
+    uint16_t lux              = 0;
+    uint16_t prox             = 0;
 
     cfn_hal_error_code_t err  = vcnl4040_read_reg16(dev->i2c, dev->address, VCNL4040_REG_ALS_DATA, &lux);
     if (err != CFN_HAL_ERROR_OK)
@@ -168,8 +160,8 @@ static cfn_hal_error_code_t vcnl4040_perform_read(cfn_sal_vcnl4040_t *vcnl)
         return err;
     }
 
-    vcnl->cached_lux            = lux;
-    vcnl->cached_prox           = prox;
+    vcnl->cached_lux             = lux;
+    vcnl->cached_prox            = prox;
     vcnl->last_read_timestamp_ms = now;
 
     return CFN_HAL_ERROR_OK;
@@ -185,7 +177,7 @@ static cfn_hal_error_code_t vcnl4040_light_read_lux(cfn_sal_light_sensor_t *driv
     {
         return CFN_HAL_ERROR_BAD_PARAM;
     }
-    cfn_sal_vcnl4040_t   *vcnl = CFN_HAL_CONTAINER_OF(driver, cfn_sal_vcnl4040_t, light);
+    cfn_sal_vcnl4040_t  *vcnl = CFN_HAL_CONTAINER_OF(driver, cfn_sal_vcnl4040_t, light);
     cfn_hal_error_code_t err  = vcnl4040_perform_read(vcnl);
     if (err == CFN_HAL_ERROR_OK)
     {
@@ -200,7 +192,7 @@ static cfn_hal_error_code_t vcnl4040_light_read_raw(cfn_sal_light_sensor_t *driv
     {
         return CFN_HAL_ERROR_BAD_PARAM;
     }
-    cfn_sal_vcnl4040_t   *vcnl = CFN_HAL_CONTAINER_OF(driver, cfn_sal_vcnl4040_t, light);
+    cfn_sal_vcnl4040_t  *vcnl = CFN_HAL_CONTAINER_OF(driver, cfn_sal_vcnl4040_t, light);
     cfn_hal_error_code_t err  = vcnl4040_perform_read(vcnl);
     if (err == CFN_HAL_ERROR_OK)
     {
@@ -214,7 +206,7 @@ static cfn_hal_error_code_t vcnl4040_light_set_thresholds(cfn_sal_light_sensor_t
     cfn_sal_vcnl4040_t   *vcnl = CFN_HAL_CONTAINER_OF(driver, cfn_sal_vcnl4040_t, light);
     cfn_hal_i2c_device_t *dev  = (cfn_hal_i2c_device_t *) vcnl->combined_state.phy->instance;
 
-    cfn_hal_error_code_t err = vcnl4040_write_reg16(dev->i2c, dev->address, VCNL4040_REG_ALS_THDL, (uint16_t) low);
+    cfn_hal_error_code_t err   = vcnl4040_write_reg16(dev->i2c, dev->address, VCNL4040_REG_ALS_THDL, (uint16_t) low);
     if (err == CFN_HAL_ERROR_OK)
     {
         err = vcnl4040_write_reg16(dev->i2c, dev->address, VCNL4040_REG_ALS_THDH, (uint16_t) high);
@@ -248,7 +240,7 @@ static cfn_hal_error_code_t vcnl4040_prox_read_raw(cfn_sal_prox_sensor_t *driver
     {
         return CFN_HAL_ERROR_BAD_PARAM;
     }
-    cfn_sal_vcnl4040_t   *vcnl = CFN_HAL_CONTAINER_OF(driver, cfn_sal_vcnl4040_t, prox);
+    cfn_sal_vcnl4040_t  *vcnl = CFN_HAL_CONTAINER_OF(driver, cfn_sal_vcnl4040_t, prox);
     cfn_hal_error_code_t err  = vcnl4040_perform_read(vcnl);
     if (err == CFN_HAL_ERROR_OK)
     {

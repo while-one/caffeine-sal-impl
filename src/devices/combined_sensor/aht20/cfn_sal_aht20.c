@@ -125,7 +125,7 @@ static cfn_hal_error_code_t aht20_perform_read(cfn_sal_aht20_t *aht)
         return CFN_HAL_ERROR_OK;
     }
 
-    cfn_hal_i2c_device_t *dev = (cfn_hal_i2c_device_t *) aht->combined_state.phy->instance;
+    cfn_hal_i2c_device_t *dev        = (cfn_hal_i2c_device_t *) aht->combined_state.phy->instance;
 
     uint8_t                   cmd[3] = { AHT20_CMD_TRIGGER, 0x33, 0x00 };
     uint8_t                   buffer[7];
@@ -159,11 +159,11 @@ static cfn_hal_error_code_t aht20_perform_read(cfn_sal_aht20_t *aht)
     }
 
     /* Unpack 20-bit data */
-    uint32_t raw_hum         = ((uint32_t) buffer[1] << 12) | ((uint32_t) buffer[2] << 4) | (buffer[3] >> 4);
-    uint32_t raw_temp        = ((uint32_t) (buffer[3] & 0x0F) << 16) | ((uint32_t) buffer[4] << 8) | buffer[5];
+    uint32_t raw_hum            = ((uint32_t) buffer[1] << 12) | ((uint32_t) buffer[2] << 4) | (buffer[3] >> 4);
+    uint32_t raw_temp           = ((uint32_t) (buffer[3] & 0x0F) << 16) | ((uint32_t) buffer[4] << 8) | buffer[5];
 
-    aht->cached_hum_rh       = ((float) raw_hum * 100.0f) / 1048576.0f;
-    aht->cached_temp_celsius = (((float) raw_temp * 200.0f) / 1048576.0f) - 50.0f;
+    aht->cached_hum_rh          = ((float) raw_hum * 100.0f) / 1048576.0f;
+    aht->cached_temp_celsius    = (((float) raw_temp * 200.0f) / 1048576.0f) - 50.0f;
     aht->last_read_timestamp_ms = now;
 
     return CFN_HAL_ERROR_OK;
@@ -249,10 +249,10 @@ static cfn_hal_error_code_t aht20_hum_read_raw(cfn_sal_hum_sensor_t *driver, int
 }
 
 static const cfn_sal_temp_sensor_api_t TEMP_API = {
-    .base                = { .init = aht20_shared_init, .deinit = aht20_shared_deinit },
-    .read_celsius        = aht20_temp_read_celsius,
-    .read_fahrenheit     = aht20_temp_read_fahrenheit,
-    .read_raw            = aht20_temp_read_raw,
+    .base            = { .init = aht20_shared_init, .deinit = aht20_shared_deinit },
+    .read_celsius    = aht20_temp_read_celsius,
+    .read_fahrenheit = aht20_temp_read_fahrenheit,
+    .read_raw        = aht20_temp_read_raw,
 };
 
 static const cfn_sal_hum_sensor_api_t HUM_API = {
@@ -264,9 +264,8 @@ static const cfn_sal_hum_sensor_api_t HUM_API = {
 /* -------------------------------------------------------------------------- */
 /* Public API Implementation                                                  */
 /* -------------------------------------------------------------------------- */
-cfn_hal_error_code_t cfn_sal_aht20_construct(cfn_sal_aht20_t            *sensor,
-                                             const cfn_sal_phy_t         *phy,
-                                             cfn_sal_timekeeping_t       *time_source)
+cfn_hal_error_code_t
+cfn_sal_aht20_construct(cfn_sal_aht20_t *sensor, const cfn_sal_phy_t *phy, cfn_sal_timekeeping_t *time_source)
 {
     if (!sensor || !phy || !phy->instance)
     {

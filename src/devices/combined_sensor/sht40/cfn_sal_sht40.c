@@ -125,7 +125,7 @@ static cfn_hal_error_code_t sht40_perform_read(cfn_sal_sht40_t *sht)
         return CFN_HAL_ERROR_OK;
     }
 
-    cfn_hal_i2c_device_t *dev = (cfn_hal_i2c_device_t *) sht->combined_state.phy->instance;
+    cfn_hal_i2c_device_t *dev     = (cfn_hal_i2c_device_t *) sht->combined_state.phy->instance;
 
     uint8_t                   cmd = SHT40_CMD_MEAS_HIGH_PREC;
     uint8_t                   buffer[6];
@@ -249,11 +249,11 @@ static cfn_hal_error_code_t sht40_hum_read_raw(cfn_sal_hum_sensor_t *driver, int
 }
 
 static const cfn_sal_temp_sensor_api_t TEMP_API = {
-    .base                = { .init = sht40_shared_init, .deinit = sht40_shared_deinit },
-    .read_celsius        = sht40_temp_read_celsius,
-    .read_fahrenheit     = sht40_temp_read_fahrenheit,
-    .read_raw            = sht40_temp_read_raw,
-    .get_serial_number   = NULL,
+    .base              = { .init = sht40_shared_init, .deinit = sht40_shared_deinit },
+    .read_celsius      = sht40_temp_read_celsius,
+    .read_fahrenheit   = sht40_temp_read_fahrenheit,
+    .read_raw          = sht40_temp_read_raw,
+    .get_serial_number = NULL,
 };
 
 static const cfn_sal_hum_sensor_api_t HUM_API = {

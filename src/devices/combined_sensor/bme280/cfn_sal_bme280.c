@@ -12,23 +12,23 @@
 /* Private Constants                                                          */
 /* -------------------------------------------------------------------------- */
 
-#define BME280_REG_ID       0xD0
-#define BME280_REG_RESET    0xE0
+#define BME280_REG_ID        0xD0
+#define BME280_REG_RESET     0xE0
 #define BME280_REG_CTRL_HUM  0xF2
-#define BME280_REG_STATUS   0xF3
+#define BME280_REG_STATUS    0xF3
 #define BME280_REG_CTRL_MEAS 0xF4
-#define BME280_REG_CONFIG   0xF5
+#define BME280_REG_CONFIG    0xF5
 #define BME280_REG_PRESS_MSB 0xF7
 
 #define BME280_REG_CALIB_00 0x88
 #define BME280_REG_CALIB_26 0xE1
 
-#define BME280_ID_VAL       0x60
-#define BME280_RESET_VAL    0xB6
+#define BME280_ID_VAL    0x60
+#define BME280_RESET_VAL 0xB6
 
-#define BME280_MODE_SLEEP   0x00
-#define BME280_MODE_FORCED  0x01
-#define BME280_MODE_NORMAL  0x03
+#define BME280_MODE_SLEEP  0x00
+#define BME280_MODE_FORCED 0x01
+#define BME280_MODE_NORMAL 0x03
 
 /* -------------------------------------------------------------------------- */
 /* Internal Helpers                                                           */
@@ -38,26 +38,17 @@ static cfn_hal_error_code_t bme280_write_reg(const cfn_sal_phy_t *phy, uint8_t r
 {
     if (phy->type == CFN_HAL_PERIPHERAL_TYPE_I2C)
     {
-        cfn_hal_i2c_device_t *dev = (cfn_hal_i2c_device_t *) phy->instance;
+        cfn_hal_i2c_device_t         *dev = (cfn_hal_i2c_device_t *) phy->instance;
         cfn_hal_i2c_mem_transaction_t xfr = {
-            .dev_addr = dev->address,
-            .mem_addr = reg,
-            .mem_addr_size = 1,
-            .data = &val,
-            .size = 1
+            .dev_addr = dev->address, .mem_addr = reg, .mem_addr_size = 1, .data = &val, .size = 1
         };
         return cfn_hal_i2c_mem_write(dev->i2c, &xfr, 100);
     }
     else if (phy->type == CFN_HAL_PERIPHERAL_TYPE_SPI)
     {
-        cfn_hal_spi_device_t *dev     = (cfn_hal_spi_device_t *) phy->instance;
-        uint8_t               tx[2]   = { reg & 0x7F, val }; /* Clear bit 7 for write */
-        cfn_hal_spi_transaction_t xfr = {
-            .tx_payload = tx,
-            .rx_payload = NULL,
-            .nbr_of_bytes = 2,
-            .cs = dev->cs_pin
-        };
+        cfn_hal_spi_device_t     *dev   = (cfn_hal_spi_device_t *) phy->instance;
+        uint8_t                   tx[2] = { reg & 0x7F, val }; /* Clear bit 7 for write */
+        cfn_hal_spi_transaction_t xfr = { .tx_payload = tx, .rx_payload = NULL, .nbr_of_bytes = 2, .cs = dev->cs_pin };
         return cfn_hal_spi_xfr_polling(dev->spi, &xfr, 100);
     }
     return CFN_HAL_ERROR_NOT_SUPPORTED;
@@ -67,25 +58,18 @@ static cfn_hal_error_code_t bme280_read_regs(const cfn_sal_phy_t *phy, uint8_t r
 {
     if (phy->type == CFN_HAL_PERIPHERAL_TYPE_I2C)
     {
-        cfn_hal_i2c_device_t *dev = (cfn_hal_i2c_device_t *) phy->instance;
+        cfn_hal_i2c_device_t         *dev = (cfn_hal_i2c_device_t *) phy->instance;
         cfn_hal_i2c_mem_transaction_t xfr = {
-            .dev_addr = dev->address,
-            .mem_addr = reg,
-            .mem_addr_size = 1,
-            .data = data,
-            .size = len
+            .dev_addr = dev->address, .mem_addr = reg, .mem_addr_size = 1, .data = data, .size = len
         };
         return cfn_hal_i2c_mem_read(dev->i2c, &xfr, 100);
     }
     else if (phy->type == CFN_HAL_PERIPHERAL_TYPE_SPI)
     {
-        cfn_hal_spi_device_t *dev = (cfn_hal_spi_device_t *) phy->instance;
-        uint8_t               cmd = reg | 0x80; /* Set bit 7 for read */
+        cfn_hal_spi_device_t     *dev = (cfn_hal_spi_device_t *) phy->instance;
+        uint8_t                   cmd = reg | 0x80; /* Set bit 7 for read */
         cfn_hal_spi_transaction_t xfr = {
-            .tx_payload = &cmd,
-            .rx_payload = data,
-            .nbr_of_bytes = len,
-            .cs = dev->cs_pin
+            .tx_payload = &cmd, .rx_payload = data, .nbr_of_bytes = len, .cs = dev->cs_pin
         };
         return cfn_hal_spi_xfr_polling(dev->spi, &xfr, 100);
     }
@@ -95,8 +79,8 @@ static cfn_hal_error_code_t bme280_read_regs(const cfn_sal_phy_t *phy, uint8_t r
 static int32_t bme280_compensate_t(cfn_sal_bme280_t *bme, int32_t adc_t)
 {
     int32_t var1, var2, t;
-    var1      = ((((adc_t >> 3) - ((int32_t) bme->calib.dig_T1 << 1))) * ((int32_t) bme->calib.dig_T2)) >> 11;
-    var2      = (((((adc_t >> 4) - ((int32_t) bme->calib.dig_T1)) * ((adc_t >> 4) - ((int32_t) bme->calib.dig_T1))) >> 12) *
+    var1 = ((((adc_t >> 3) - ((int32_t) bme->calib.dig_T1 << 1))) * ((int32_t) bme->calib.dig_T2)) >> 11;
+    var2 = (((((adc_t >> 4) - ((int32_t) bme->calib.dig_T1)) * ((adc_t >> 4) - ((int32_t) bme->calib.dig_T1))) >> 12) *
             ((int32_t) bme->calib.dig_T3)) >>
            14;
     bme->calib.t_fine = var1 + var2;
@@ -129,16 +113,17 @@ static uint32_t bme280_compensate_h(cfn_sal_bme280_t *bme, int32_t adc_h)
 {
     int32_t v_x1_u32r;
     v_x1_u32r = (bme->calib.t_fine - ((int32_t) 76800));
-    v_x1_u32r = (((((adc_h << 14) - (((int32_t) bme->calib.dig_H4) << 20) - (((int32_t) bme->calib.dig_H5) * v_x1_u32r)) +
-                   ((int32_t) 16384)) >>
-                  15) *
-                 (((((((v_x1_u32r * ((int32_t) bme->calib.dig_H6)) >> 10) *
-                      (((v_x1_u32r * ((int32_t) bme->calib.dig_H3)) >> 11) + ((int32_t) 32768))) >>
-                     10) +
-                    ((int32_t) 2097152)) *
-                       ((int32_t) bme->calib.dig_H2) +
-                   8192) >>
-                  14));
+    v_x1_u32r =
+        (((((adc_h << 14) - (((int32_t) bme->calib.dig_H4) << 20) - (((int32_t) bme->calib.dig_H5) * v_x1_u32r)) +
+           ((int32_t) 16384)) >>
+          15) *
+         (((((((v_x1_u32r * ((int32_t) bme->calib.dig_H6)) >> 10) *
+              (((v_x1_u32r * ((int32_t) bme->calib.dig_H3)) >> 11) + ((int32_t) 32768))) >>
+             10) +
+            ((int32_t) 2097152)) *
+               ((int32_t) bme->calib.dig_H2) +
+           8192) >>
+          14));
     v_x1_u32r = (v_x1_u32r - (((((v_x1_u32r >> 15) * (v_x1_u32r >> 15)) >> 7) * ((int32_t) bme->calib.dig_H1)) >> 4));
     v_x1_u32r = (v_x1_u32r < 0 ? 0 : v_x1_u32r);
     v_x1_u32r = (v_x1_u32r > 419430400 ? 419430400 : v_x1_u32r);
@@ -410,16 +395,16 @@ static cfn_hal_error_code_t bme280_press_read_raw(cfn_sal_pressure_sensor_t *dri
 }
 
 static const cfn_sal_temp_sensor_api_t TEMP_API = {
-    .base         = { .init = bme280_shared_init, .deinit = bme280_shared_deinit },
-    .read_celsius = bme280_temp_read_celsius,
+    .base            = { .init = bme280_shared_init, .deinit = bme280_shared_deinit },
+    .read_celsius    = bme280_temp_read_celsius,
     .read_fahrenheit = bme280_temp_read_fahrenheit,
-    .read_raw = bme280_temp_read_raw,
+    .read_raw        = bme280_temp_read_raw,
 };
 
 static const cfn_sal_hum_sensor_api_t HUM_API = {
     .base                   = { .init = bme280_shared_init, .deinit = bme280_shared_deinit },
     .read_relative_humidity = bme280_hum_read_rh,
-    .read_raw = bme280_hum_read_raw,
+    .read_raw               = bme280_hum_read_raw,
 };
 
 static const cfn_sal_pressure_sensor_api_t PRESS_API = {
@@ -432,9 +417,8 @@ static const cfn_sal_pressure_sensor_api_t PRESS_API = {
 /* Public API                                                                 */
 /* -------------------------------------------------------------------------- */
 
-cfn_hal_error_code_t cfn_sal_bme280_construct(cfn_sal_bme280_t            *sensor,
-                                              const cfn_sal_phy_t         *phy,
-                                              cfn_sal_timekeeping_t       *time_source)
+cfn_hal_error_code_t
+cfn_sal_bme280_construct(cfn_sal_bme280_t *sensor, const cfn_sal_phy_t *phy, cfn_sal_timekeeping_t *time_source)
 {
     if (!sensor || !phy || !phy->instance)
     {
