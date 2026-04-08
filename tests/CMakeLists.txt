@@ -30,7 +30,8 @@ else()
 endif()
 
 # Create the test executable
-file(GLOB TEST_SOURCES "*.cpp")
+# Globbing is recommended for unit tests to ensure total coverage
+file(GLOB TEST_SOURCES CONFIGURE_DEPENDS "*.cpp")
 add_executable(${PROJECT_NAME}-test ${TEST_SOURCES})
 
 # Always enable coverage instrumentation for host-side unit tests

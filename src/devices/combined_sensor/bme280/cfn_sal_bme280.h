@@ -15,6 +15,7 @@ extern "C"
 #include "devices/cfn_sal_temp_sensor.h"
 #include "devices/cfn_sal_hum_sensor.h"
 #include "devices/cfn_sal_pressure_sensor.h"
+#include "utilities/cfn_sal_timekeeping.h"
 
 /* -------------------------------------------------------------------------- */
 /* Constants                                                                  */
@@ -75,9 +76,10 @@ typedef struct
     uint8_t config_reg;
 
     /* Cached measurement results */
-    float cached_temp;
-    float cached_hum;
-    float cached_press;
+    uint64_t last_read_timestamp_ms;
+    float    cached_temp;
+    float    cached_hum;
+    float    cached_press;
 } cfn_sal_bme280_t;
 
 /* -------------------------------------------------------------------------- */
@@ -88,11 +90,13 @@ typedef struct
  * @brief BME280 monolithic constructor.
  * Initializes all three polymorphic interfaces and links them to the shared physical mapping.
  *
- * @param sensor Pointer to the composite sensor structure.
- * @param phy    Pointer to the physical interface mapping (Must point to cfn_hal_i2c_device_t or cfn_hal_spi_device_t).
+ * @param sensor      Pointer to the composite sensor structure.
+ * @param phy         Pointer to the physical interface mapping.
+ * @param time_source Optional pointer to a timekeeping service for caching logic.
  * @return CFN_HAL_ERROR_OK on success.
  */
-cfn_hal_error_code_t cfn_sal_bme280_construct(cfn_sal_bme280_t *sensor, const cfn_sal_phy_t *phy);
+cfn_hal_error_code_t
+cfn_sal_bme280_construct(cfn_sal_bme280_t *sensor, const cfn_sal_phy_t *phy, cfn_sal_timekeeping_t *time_source);
 
 /**
  * @brief BME280 destructor.

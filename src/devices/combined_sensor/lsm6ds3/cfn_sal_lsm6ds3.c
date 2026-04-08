@@ -1,87 +1,28 @@
 /**
  * @file cfn_sal_lsm6ds3.c
- * @brief LSM6DS3 combined sensor implementation.
+ * @brief LSM6DS3 combined sensor (Accelerometer and Gyroscope) implementation.
  */
 
 #include "cfn_sal_lsm6ds3.h"
-#include "cfn_hal_i2c.h"
-#include "cfn_hal_spi.h"
-#include <stddef.h>
 #include <string.h>
 
 /* -------------------------------------------------------------------------- */
-/* Constants & Definitions                                                    */
+/* Private Constants                                                          */
 /* -------------------------------------------------------------------------- */
 
-#define LSM6DS3_REG_WHO_AM_I       0x0F
-#define LSM6DS3_REG_CTRL1_XL       0x10
-#define LSM6DS3_REG_CTRL2_G        0x11
-#define LSM6DS3_REG_CTRL3_C        0x12
-#define LSM6DS3_REG_OUTX_L_G       0x22
-#define LSM6DS3_REG_OUTX_L_XL      0x28
-#define LSM6DS3_REG_STEP_COUNTER_L 0x4B
+#define LSM6DS3_REG_WHO_AM_I   0x0F
+#define LSM6DS3_REG_CTRL1_XL   0x10
+#define LSM6DS3_REG_CTRL2_G    0x11
+#define LSM6DS3_REG_CTRL3_C    0x12
+#define LSM6DS3_REG_OUTX_L_G   0x22
+#define LSM6DS3_REG_OUTX_L_XL  0x28
+#define LSM6DS3_REG_STEP_CNT_L 0x4B
 
 #define LSM6DS3_WHO_AM_I_VAL 0x69
-
-#define LSM6DS3_CTRL3_SW_RESET CFN_HAL_BIT(0)
-#define LSM6DS3_CTRL3_BDU      CFN_HAL_BIT(6)
-#define LSM6DS3_CTRL3_IF_INC   CFN_HAL_BIT(2)
 
 /* -------------------------------------------------------------------------- */
 /* Internal Helpers                                                           */
 /* -------------------------------------------------------------------------- */
-
-static cfn_sal_lsm6ds3_t *get_lsm6ds3_from_base(cfn_hal_driver_t *base)
-{
-    if (base->type == CFN_SAL_TYPE_ACCEL)
-    {
-        return CFN_HAL_CONTAINER_OF(base, cfn_sal_lsm6ds3_t, accel.base);
-    }
-    else if (base->type == CFN_SAL_TYPE_GYRO_SENSOR)
-    {
-        return CFN_HAL_CONTAINER_OF(base, cfn_sal_lsm6ds3_t, gyro.base);
-    }
-    return NULL;
-}
-
-static cfn_hal_error_code_t lsm6ds3_read_regs(const cfn_sal_phy_t *phy, uint8_t reg, uint8_t *data, size_t size)
-{
-    if (phy->type == CFN_HAL_PERIPHERAL_TYPE_I2C)
-    {
-        cfn_hal_i2c_device_t         *dev = (cfn_hal_i2c_device_t *) phy->instance;
-        cfn_hal_i2c_mem_transaction_t xfr = {
-            .dev_addr = dev->address, .mem_addr = reg, .mem_addr_size = 1, .data = data, .size = size
-        };
-        return cfn_hal_i2c_mem_read(dev->i2c, &xfr, 100);
-    }
-    else if (phy->type == CFN_HAL_PERIPHERAL_TYPE_SPI)
-    {
-        cfn_hal_spi_device_t *dev  = (cfn_hal_spi_device_t *) phy->instance;
-        uint8_t               addr = reg | 0x80; /* SPI read: Bit 0 is 1 for Read */
-
-        uint8_t tx_buf[32];
-        uint8_t rx_buf[32];
-        if (size > 31)
-        {
-            return CFN_HAL_ERROR_OUT_OF_BOUND;
-        }
-
-        memset(tx_buf, 0, sizeof(tx_buf));
-        tx_buf[0]                     = addr;
-
-        cfn_hal_spi_transaction_t xfr = {
-            .tx_payload = tx_buf, .rx_payload = rx_buf, .nbr_of_bytes = size + 1, .cs = dev->cs_pin
-        };
-
-        cfn_hal_error_code_t err = cfn_hal_spi_xfr_polling(dev->spi, &xfr, 100);
-        if (err == CFN_HAL_ERROR_OK)
-        {
-            memcpy(data, &rx_buf[1], size);
-        }
-        return err;
-    }
-    return CFN_HAL_ERROR_NOT_SUPPORTED;
-}
 
 static cfn_hal_error_code_t lsm6ds3_write_reg(const cfn_sal_phy_t *phy, uint8_t reg, uint8_t val)
 {
@@ -95,28 +36,63 @@ static cfn_hal_error_code_t lsm6ds3_write_reg(const cfn_sal_phy_t *phy, uint8_t 
     }
     else if (phy->type == CFN_HAL_PERIPHERAL_TYPE_SPI)
     {
-        cfn_hal_spi_device_t *dev       = (cfn_hal_spi_device_t *) phy->instance;
-        uint8_t               buffer[2] = { reg & 0x7F, val }; /* Bit 0 is 0 for Write */
+        cfn_hal_spi_device_t     *dev   = (cfn_hal_spi_device_t *) phy->instance;
+        uint8_t                   tx[2] = { reg & 0x7F, val };
+        cfn_hal_spi_transaction_t xfr = { .tx_payload = tx, .rx_payload = NULL, .nbr_of_bytes = 2, .cs = dev->cs_pin };
+        return cfn_hal_spi_xfr_polling(dev->spi, &xfr, 100);
+    }
+    return CFN_HAL_ERROR_NOT_SUPPORTED;
+}
 
-        cfn_hal_spi_transaction_t xfr   = {
-              .tx_payload = buffer, .rx_payload = NULL, .nbr_of_bytes = 2, .cs = dev->cs_pin
+static cfn_hal_error_code_t lsm6ds3_read_regs(const cfn_sal_phy_t *phy, uint8_t reg, uint8_t *data, size_t len)
+{
+    if (phy->type == CFN_HAL_PERIPHERAL_TYPE_I2C)
+    {
+        cfn_hal_i2c_device_t         *dev = (cfn_hal_i2c_device_t *) phy->instance;
+        cfn_hal_i2c_mem_transaction_t xfr = {
+            .dev_addr = dev->address, .mem_addr = reg, .mem_addr_size = 1, .data = data, .size = len
+        };
+        return cfn_hal_i2c_mem_read(dev->i2c, &xfr, 100);
+    }
+    else if (phy->type == CFN_HAL_PERIPHERAL_TYPE_SPI)
+    {
+        cfn_hal_spi_device_t     *dev = (cfn_hal_spi_device_t *) phy->instance;
+        uint8_t                   cmd = reg | 0x80;
+        cfn_hal_spi_transaction_t xfr = {
+            .tx_payload = &cmd, .rx_payload = data, .nbr_of_bytes = len, .cs = dev->cs_pin
         };
         return cfn_hal_spi_xfr_polling(dev->spi, &xfr, 100);
     }
     return CFN_HAL_ERROR_NOT_SUPPORTED;
 }
 
+static cfn_sal_lsm6ds3_t *get_lsm6ds3_from_base(cfn_hal_driver_t *base)
+{
+    if (base->type == CFN_SAL_TYPE_ACCEL)
+    {
+        return CFN_HAL_CONTAINER_OF(base, cfn_sal_lsm6ds3_t, accel);
+    }
+    if (base->type == CFN_SAL_TYPE_GYRO_SENSOR)
+    {
+        return CFN_HAL_CONTAINER_OF(base, cfn_sal_lsm6ds3_t, gyro);
+    }
+    return NULL;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Shared Lifecycle                                                           */
+/* -------------------------------------------------------------------------- */
+
 static cfn_hal_error_code_t lsm6ds3_shared_init(cfn_hal_driver_t *base)
 {
     cfn_sal_lsm6ds3_t *lsm = get_lsm6ds3_from_base(base);
-    if (!lsm || !lsm->combined_state.phy || !lsm->combined_state.phy->instance)
+    if (!lsm)
     {
         return CFN_HAL_ERROR_BAD_PARAM;
     }
 
     if (lsm->combined_state.init_ref_count == 0)
     {
-        /* Initialize the physical bus */
         if (lsm->combined_state.phy->type == CFN_HAL_PERIPHERAL_TYPE_I2C)
         {
             cfn_hal_i2c_device_t *dev = (cfn_hal_i2c_device_t *) lsm->combined_state.phy->instance;
@@ -128,34 +104,19 @@ static cfn_hal_error_code_t lsm6ds3_shared_init(cfn_hal_driver_t *base)
             cfn_hal_spi_init(dev->spi);
         }
 
-        /* Identity Check */
-        uint8_t              id  = 0;
-        cfn_hal_error_code_t err = lsm6ds3_read_regs(lsm->combined_state.phy, LSM6DS3_REG_WHO_AM_I, &id, 1);
-        if (err != CFN_HAL_ERROR_OK || id != LSM6DS3_WHO_AM_I_VAL)
+        /* WHO_AM_I */
+        uint8_t id = 0;
+        if (lsm6ds3_read_regs(lsm->combined_state.phy, LSM6DS3_REG_WHO_AM_I, &id, 1) != CFN_HAL_ERROR_OK ||
+            id != LSM6DS3_WHO_AM_I_VAL)
         {
             return CFN_HAL_ERROR_FAIL;
         }
 
-        /* Software Reset */
-        err = lsm6ds3_write_reg(lsm->combined_state.phy, LSM6DS3_REG_CTRL3_C, LSM6DS3_CTRL3_SW_RESET);
-        if (err != CFN_HAL_ERROR_OK)
-        {
-            return err;
-        }
-
-        /* Wait for reset (simple delay for now) */
-        /* cfn_hal_delay(10); */
-
-        /* Basic Config: BDU and Auto Increment */
-        err = lsm6ds3_write_reg(lsm->combined_state.phy, LSM6DS3_REG_CTRL3_C, LSM6DS3_CTRL3_BDU | LSM6DS3_CTRL3_IF_INC);
-        if (err != CFN_HAL_ERROR_OK)
-        {
-            return err;
-        }
+        /* Basic Config: Enable block data update, auto-increment */
+        (void) lsm6ds3_write_reg(lsm->combined_state.phy, LSM6DS3_REG_CTRL3_C, 0x44);
 
         lsm->combined_state.hw_initialized = true;
     }
-
     lsm->combined_state.init_ref_count++;
     return CFN_HAL_ERROR_OK;
 }
@@ -167,16 +128,14 @@ static cfn_hal_error_code_t lsm6ds3_shared_deinit(cfn_hal_driver_t *base)
     {
         return CFN_HAL_ERROR_BAD_PARAM;
     }
-
     if (lsm->combined_state.init_ref_count > 0)
     {
         lsm->combined_state.init_ref_count--;
         if (lsm->combined_state.init_ref_count == 0)
         {
-            /* Power down everything */
+            /* Power down both */
             (void) lsm6ds3_write_reg(lsm->combined_state.phy, LSM6DS3_REG_CTRL1_XL, 0x00);
             (void) lsm6ds3_write_reg(lsm->combined_state.phy, LSM6DS3_REG_CTRL2_G, 0x00);
-
             lsm->combined_state.hw_initialized = false;
         }
     }
@@ -193,15 +152,33 @@ static cfn_hal_error_code_t lsm6ds3_accel_read_raw(cfn_sal_accel_t *driver, cfn_
     {
         return CFN_HAL_ERROR_BAD_PARAM;
     }
-    const cfn_sal_lsm6ds3_t *lsm = CFN_HAL_CONTAINER_OF(driver, cfn_sal_lsm6ds3_t, accel);
+    cfn_sal_lsm6ds3_t *lsm = CFN_HAL_CONTAINER_OF(driver, cfn_sal_lsm6ds3_t, accel);
+
+    /* Check cache validity (5ms window for high-rate IMU) */
+    uint64_t now           = 0;
+    bool     use_caching   = false;
+
+    if (lsm->accel.base.dependency != NULL)
+    {
+        cfn_sal_timekeeping_get_ms((cfn_sal_timekeeping_t *) lsm->accel.base.dependency, &now);
+        use_caching = true;
+    }
+
+    if (use_caching && lsm->combined_state.hw_initialized && (now - lsm->last_read_timestamp_accel_ms < 5))
+    {
+        *data_out = lsm->cached_accel_raw;
+        return CFN_HAL_ERROR_OK;
+    }
 
     uint8_t              buffer[6];
     cfn_hal_error_code_t err = lsm6ds3_read_regs(lsm->combined_state.phy, LSM6DS3_REG_OUTX_L_XL, buffer, 6);
     if (err == CFN_HAL_ERROR_OK)
     {
-        data_out->x = (int16_t) ((buffer[1] << 8) | buffer[0]);
-        data_out->y = (int16_t) ((buffer[3] << 8) | buffer[2]);
-        data_out->z = (int16_t) ((buffer[5] << 8) | buffer[4]);
+        lsm->cached_accel_raw.x           = (int16_t) ((buffer[1] << 8) | buffer[0]);
+        lsm->cached_accel_raw.y           = (int16_t) ((buffer[3] << 8) | buffer[2]);
+        lsm->cached_accel_raw.z           = (int16_t) ((buffer[5] << 8) | buffer[4]);
+        *data_out                         = lsm->cached_accel_raw;
+        lsm->last_read_timestamp_accel_ms = now;
     }
     return err;
 }
@@ -228,18 +205,18 @@ static cfn_hal_error_code_t lsm6ds3_accel_read_mg(cfn_sal_accel_t *driver, cfn_s
             default:
                 break;
         }
-        data_out->x = (int32_t) ((float) raw.x * sensitivity);
-        data_out->y = (int32_t) ((float) raw.y * sensitivity);
-        data_out->z = (int32_t) ((float) raw.z * sensitivity);
+        data_out->x = (int16_t) ((float) raw.x * sensitivity);
+        data_out->y = (int16_t) ((float) raw.y * sensitivity);
+        data_out->z = (int16_t) ((float) raw.z * sensitivity);
     }
     return err;
 }
 
 static cfn_hal_error_code_t lsm6ds3_accel_set_range(cfn_sal_accel_t *driver, cfn_sal_accel_range_t range)
 {
-    cfn_sal_lsm6ds3_t   *lsm   = CFN_HAL_CONTAINER_OF(driver, cfn_sal_lsm6ds3_t, accel);
-    uint8_t              ctrl1 = 0;
-    cfn_hal_error_code_t err   = lsm6ds3_read_regs(lsm->combined_state.phy, LSM6DS3_REG_CTRL1_XL, &ctrl1, 1);
+    cfn_sal_lsm6ds3_t   *lsm = CFN_HAL_CONTAINER_OF(driver, cfn_sal_lsm6ds3_t, accel);
+    uint8_t              ctrl1;
+    cfn_hal_error_code_t err = lsm6ds3_read_regs(lsm->combined_state.phy, LSM6DS3_REG_CTRL1_XL, &ctrl1, 1);
     if (err != CFN_HAL_ERROR_OK)
     {
         return err;
@@ -248,18 +225,19 @@ static cfn_hal_error_code_t lsm6ds3_accel_set_range(cfn_sal_accel_t *driver, cfn
     ctrl1 &= ~0x0C; /* Clear FS bits */
     switch (range)
     {
-        case CFN_SAL_ACCEL_RANGE_2G:
-            break;
-        case CFN_SAL_ACCEL_RANGE_16G:
-            ctrl1 |= 0x04;
-            break;
         case CFN_SAL_ACCEL_RANGE_4G:
             ctrl1 |= 0x08;
             break;
         case CFN_SAL_ACCEL_RANGE_8G:
             ctrl1 |= 0x0C;
             break;
+        case CFN_SAL_ACCEL_RANGE_16G:
+            ctrl1 |= 0x04;
+            break;
+        default:
+            break;
     }
+
     err = lsm6ds3_write_reg(lsm->combined_state.phy, LSM6DS3_REG_CTRL1_XL, ctrl1);
     if (err == CFN_HAL_ERROR_OK)
     {
@@ -270,13 +248,9 @@ static cfn_hal_error_code_t lsm6ds3_accel_set_range(cfn_sal_accel_t *driver, cfn
 
 static cfn_hal_error_code_t lsm6ds3_accel_read_steps(cfn_sal_accel_t *driver, uint32_t *steps)
 {
-    if (!driver || !steps)
-    {
-        return CFN_HAL_ERROR_BAD_PARAM;
-    }
     const cfn_sal_lsm6ds3_t *lsm = CFN_HAL_CONTAINER_OF(driver, cfn_sal_lsm6ds3_t, accel);
     uint8_t                  buffer[2];
-    cfn_hal_error_code_t     err = lsm6ds3_read_regs(lsm->combined_state.phy, LSM6DS3_REG_STEP_COUNTER_L, buffer, 2);
+    cfn_hal_error_code_t     err = lsm6ds3_read_regs(lsm->combined_state.phy, LSM6DS3_REG_STEP_CNT_L, buffer, 2);
     if (err == CFN_HAL_ERROR_OK)
     {
         *steps = (uint32_t) ((buffer[1] << 8) | buffer[0]);
@@ -294,15 +268,33 @@ static cfn_hal_error_code_t lsm6ds3_gyro_read_raw(cfn_sal_gyro_sensor_t *driver,
     {
         return CFN_HAL_ERROR_BAD_PARAM;
     }
-    const cfn_sal_lsm6ds3_t *lsm = CFN_HAL_CONTAINER_OF(driver, cfn_sal_lsm6ds3_t, gyro);
+    cfn_sal_lsm6ds3_t *lsm = CFN_HAL_CONTAINER_OF(driver, cfn_sal_lsm6ds3_t, gyro);
+
+    /* Check cache validity (5ms window) */
+    uint64_t now           = 0;
+    bool     use_caching   = false;
+
+    if (lsm->gyro.base.dependency != NULL)
+    {
+        cfn_sal_timekeeping_get_ms((cfn_sal_timekeeping_t *) lsm->gyro.base.dependency, &now);
+        use_caching = true;
+    }
+
+    if (use_caching && lsm->combined_state.hw_initialized && (now - lsm->last_read_timestamp_gyro_ms < 5))
+    {
+        *data_out = lsm->cached_gyro_raw;
+        return CFN_HAL_ERROR_OK;
+    }
 
     uint8_t              buffer[6];
     cfn_hal_error_code_t err = lsm6ds3_read_regs(lsm->combined_state.phy, LSM6DS3_REG_OUTX_L_G, buffer, 6);
     if (err == CFN_HAL_ERROR_OK)
     {
-        data_out->x = (int16_t) ((buffer[1] << 8) | buffer[0]);
-        data_out->y = (int16_t) ((buffer[3] << 8) | buffer[2]);
-        data_out->z = (int16_t) ((buffer[5] << 8) | buffer[4]);
+        lsm->cached_gyro_raw.x           = (int16_t) ((buffer[1] << 8) | buffer[0]);
+        lsm->cached_gyro_raw.y           = (int16_t) ((buffer[3] << 8) | buffer[2]);
+        lsm->cached_gyro_raw.z           = (int16_t) ((buffer[5] << 8) | buffer[4]);
+        *data_out                        = lsm->cached_gyro_raw;
+        lsm->last_read_timestamp_gyro_ms = now;
     }
     return err;
 }
@@ -314,12 +306,9 @@ static cfn_hal_error_code_t lsm6ds3_gyro_read_mdps(cfn_sal_gyro_sensor_t *driver
     if (err == CFN_HAL_ERROR_OK)
     {
         const cfn_sal_lsm6ds3_t *lsm         = CFN_HAL_CONTAINER_OF(driver, cfn_sal_lsm6ds3_t, gyro);
-        float                    sensitivity = 8.75f; /* Default for 250 dps */
+        float                    sensitivity = 8.75f; /* Default for 250dps */
         switch (lsm->current_gyro_range)
         {
-            case CFN_SAL_GYRO_RANGE_125DPS:
-                sensitivity = 4.375f;
-                break;
             case CFN_SAL_GYRO_RANGE_500DPS:
                 sensitivity = 17.50f;
                 break;
@@ -332,40 +321,32 @@ static cfn_hal_error_code_t lsm6ds3_gyro_read_mdps(cfn_sal_gyro_sensor_t *driver
             default:
                 break;
         }
-        data_out->x = (int32_t) ((float) raw.x * sensitivity);
-        data_out->y = (int32_t) ((float) raw.y * sensitivity);
-        data_out->z = (int32_t) ((float) raw.z * sensitivity);
+        data_out->x = (int16_t) ((float) raw.x * sensitivity);
+        data_out->y = (int16_t) ((float) raw.y * sensitivity);
+        data_out->z = (int16_t) ((float) raw.z * sensitivity);
     }
     return err;
 }
 
 static const cfn_sal_accel_api_t ACCEL_API = {
-    .base = {
-        .init = lsm6ds3_shared_init,
-        .deinit = lsm6ds3_shared_deinit,
-    },
-    .read_xyz_raw = lsm6ds3_accel_read_raw,
-    .read_xyz_mg = lsm6ds3_accel_read_mg,
-    .set_range = lsm6ds3_accel_set_range,
+    .base              = { .init = lsm6ds3_shared_init, .deinit = lsm6ds3_shared_deinit },
+    .read_xyz_raw      = lsm6ds3_accel_read_raw,
+    .read_xyz_mg       = lsm6ds3_accel_read_mg,
+    .set_range         = lsm6ds3_accel_set_range,
     .read_step_counter = lsm6ds3_accel_read_steps,
-    /* ... other methods mocked or unimplemented ... */
 };
 
 static const cfn_sal_gyro_sensor_api_t GYRO_API = {
-    .base = {
-        .init = lsm6ds3_shared_init,
-        .deinit = lsm6ds3_shared_deinit,
-    },
-    .read_xyz_raw = lsm6ds3_gyro_read_raw,
+    .base          = { .init = lsm6ds3_shared_init, .deinit = lsm6ds3_shared_deinit },
+    .read_xyz_raw  = lsm6ds3_gyro_read_raw,
     .read_xyz_mdps = lsm6ds3_gyro_read_mdps,
-    /* ... other methods ... */
 };
 
 /* -------------------------------------------------------------------------- */
 /* Public API Implementation                                                  */
 /* -------------------------------------------------------------------------- */
-
-cfn_hal_error_code_t cfn_sal_lsm6ds3_construct(cfn_sal_lsm6ds3_t *sensor, const cfn_sal_phy_t *phy)
+cfn_hal_error_code_t
+cfn_sal_lsm6ds3_construct(cfn_sal_lsm6ds3_t *sensor, const cfn_sal_phy_t *phy, cfn_sal_timekeeping_t *time_source)
 {
     if (!sensor || !phy || !phy->instance)
     {
@@ -375,12 +356,18 @@ cfn_hal_error_code_t cfn_sal_lsm6ds3_construct(cfn_sal_lsm6ds3_t *sensor, const 
     sensor->combined_state.phy            = phy;
     sensor->combined_state.init_ref_count = 0;
     sensor->combined_state.hw_initialized = false;
+    sensor->last_read_timestamp_accel_ms  = 0;
+    sensor->last_read_timestamp_gyro_ms   = 0;
 
     sensor->current_accel_range           = CFN_SAL_ACCEL_RANGE_2G;
     sensor->current_gyro_range            = CFN_SAL_GYRO_RANGE_250DPS;
 
     cfn_sal_accel_populate(&sensor->accel, 0, &ACCEL_API, phy, NULL, NULL, NULL);
     cfn_sal_gyro_sensor_populate(&sensor->gyro, 0, &GYRO_API, phy, NULL, NULL, NULL);
+
+    /* Inject time source as a dependency for caching */
+    sensor->accel.base.dependency = time_source;
+    sensor->gyro.base.dependency  = time_source;
 
     return CFN_HAL_ERROR_OK;
 }

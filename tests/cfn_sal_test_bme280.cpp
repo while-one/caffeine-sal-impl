@@ -68,7 +68,7 @@ class Bme280Test : public ::testing::Test
         phy.type        = CFN_HAL_PERIPHERAL_TYPE_I2C;
 
         /* Construct the composite sensor */
-        cfn_sal_bme280_construct(&bme, &phy);
+        cfn_sal_bme280_construct(&bme, &phy, NULL);
     }
 };
 

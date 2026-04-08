@@ -170,6 +170,21 @@ static cfn_hal_error_code_t opt4048_shared_deinit(cfn_hal_driver_t *base)
 
 static cfn_hal_error_code_t opt4048_perform_read(cfn_sal_opt4048_t *opt)
 {
+    /* Check cache validity (10ms window) */
+    uint64_t now         = 0;
+    bool     use_caching = false;
+
+    if (opt->light.base.dependency != NULL)
+    {
+        cfn_sal_timekeeping_get_ms((cfn_sal_timekeeping_t *) opt->light.base.dependency, &now);
+        use_caching = true;
+    }
+
+    if (use_caching && opt->combined_state.hw_initialized && (now - opt->last_read_timestamp_ms < 10))
+    {
+        return CFN_HAL_ERROR_OK;
+    }
+
     cfn_hal_i2c_device_t *dev = (cfn_hal_i2c_device_t *) opt->combined_state.phy->instance;
     uint16_t              regs[8];
 
@@ -218,6 +233,8 @@ static cfn_hal_error_code_t opt4048_perform_read(cfn_sal_opt4048_t *opt)
     {
         opt->cached_cct = 0.0f;
     }
+
+    opt->last_read_timestamp_ms = now;
 
     return CFN_HAL_ERROR_OK;
 }
@@ -384,7 +401,8 @@ static const cfn_sal_color_sensor_api_t COLOR_API = {
 /* Public API Implementation                                                  */
 /* -------------------------------------------------------------------------- */
 
-cfn_hal_error_code_t cfn_sal_opt4048_construct(cfn_sal_opt4048_t *sensor, const cfn_sal_phy_t *phy)
+cfn_hal_error_code_t
+cfn_sal_opt4048_construct(cfn_sal_opt4048_t *sensor, const cfn_sal_phy_t *phy, cfn_sal_timekeeping_t *time_source)
 {
     if (!sensor || !phy || !phy->instance)
     {
@@ -394,9 +412,14 @@ cfn_hal_error_code_t cfn_sal_opt4048_construct(cfn_sal_opt4048_t *sensor, const 
     sensor->combined_state.phy            = phy;
     sensor->combined_state.init_ref_count = 0;
     sensor->combined_state.hw_initialized = false;
+    sensor->last_read_timestamp_ms        = 0;
 
     cfn_sal_light_sensor_populate(&sensor->light, 0, &LIGHT_API, phy, NULL, NULL, NULL);
     cfn_sal_color_sensor_populate(&sensor->color, 0, &COLOR_API, phy, NULL, NULL, NULL);
+
+    /* Inject time source as a dependency for caching */
+    sensor->light.base.dependency = time_source;
+    sensor->color.base.dependency = time_source;
 
     return CFN_HAL_ERROR_OK;
 }

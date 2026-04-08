@@ -78,7 +78,7 @@ class Vcnl4040Test : public ::testing::Test
         phy.instance    = &i2c_dev;
         phy.type        = CFN_HAL_PERIPHERAL_TYPE_I2C;
 
-        cfn_sal_vcnl4040_construct(&vcnl, &phy);
+        cfn_sal_vcnl4040_construct(&vcnl, &phy, NULL);
     }
 };
 
