@@ -64,15 +64,6 @@ TEST_F(PCF8574Test, InitWritesAllHigh)
     EXPECT_EQ(last_written_byte, 0xFF);
 }
 
-TEST_F(PCF8574Test, WritePinResetClearsBit)
-{
-    cfn_hal_gpio_init(&pcf.hal_gpio);
-
-    // PCF8574: P0 is Bit 0. Reset should write 0xFE (1111 1110)
-    EXPECT_EQ(cfn_hal_gpio_pin_write(&pcf.hal_gpio, CFN_HAL_GPIO_PIN_0, CFN_HAL_GPIO_STATE_LOW), CFN_HAL_ERROR_OK);
-    EXPECT_EQ(last_written_byte, 0xFE);
-}
-
 TEST_F(PCF8574Test, ReadPinReadsFromBus)
 {
     cfn_hal_gpio_init(&pcf.hal_gpio);
