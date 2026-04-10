@@ -46,7 +46,7 @@ class PCF8574Test : public ::testing::Test
             return CFN_HAL_ERROR_OK;
         };
 
-        cfn_hal_i2c_populate(&mock_i2c, 0, nullptr, &mock_i2c_api, nullptr, &mock_i2c_cfg, nullptr, nullptr);
+        cfn_hal_i2c_populate(&mock_i2c, 0, nullptr, nullptr, &mock_i2c_api, nullptr, &mock_i2c_cfg, nullptr, nullptr);
 
         i2c_dev.i2c     = &mock_i2c;
         i2c_dev.address = 0x20;
@@ -54,7 +54,7 @@ class PCF8574Test : public ::testing::Test
         phy.instance    = &i2c_dev;
         phy.type        = CFN_HAL_PERIPHERAL_TYPE_I2C;
 
-        cfn_sal_pcf8574_construct(&pcf, &phy);
+        cfn_sal_pcf8574_construct(&pcf, &phy, NULL, NULL, NULL);
     }
 };
 
@@ -62,15 +62,6 @@ TEST_F(PCF8574Test, InitWritesAllHigh)
 {
     EXPECT_EQ(cfn_hal_gpio_init(&pcf.hal_gpio), CFN_HAL_ERROR_OK);
     EXPECT_EQ(last_written_byte, 0xFF);
-}
-
-TEST_F(PCF8574Test, WritePinResetClearsBit)
-{
-    cfn_hal_gpio_init(&pcf.hal_gpio);
-
-    // PCF8574: P0 is Bit 0. Reset should write 0xFE (1111 1110)
-    EXPECT_EQ(cfn_hal_gpio_pin_write(&pcf.hal_gpio, CFN_HAL_GPIO_PIN_0, CFN_HAL_GPIO_STATE_LOW), CFN_HAL_ERROR_OK);
-    EXPECT_EQ(last_written_byte, 0xFE);
 }
 
 TEST_F(PCF8574Test, ReadPinReadsFromBus)

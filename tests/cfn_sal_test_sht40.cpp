@@ -1,10 +1,10 @@
 /**
  * @file cfn_sal_test_sht40.cpp
- * @brief Unit tests for the SHT40 combined sensor implementation.
+ * @brief Unit tests for the SHT40 composite sensor implementation.
  */
 
 #include <gtest/gtest.h>
-#include "devices/combined_sensor/sht40/cfn_sal_sht40.h"
+#include "devices/composite_sensor/sht40/cfn_sal_sht40.h"
 #include "cfn_hal_i2c.h"
 
 class Sht40Test : public ::testing::Test
@@ -47,8 +47,6 @@ class Sht40Test : public ::testing::Test
             if (xfr->rx_payload && xfr->nbr_of_rx_bytes >= 6)
             {
                 /* Mock data: T=25C, RH=50% */
-                /* T_raw = (25 + 45) * 65535 / 175 = 26214 = 0x6666 */
-                /* RH_raw = (50 + 6) * 65535 / 125 = 29359 = 0x72AF */
                 xfr->rx_payload[0] = 0x66;
                 xfr->rx_payload[1] = 0x66;
                 xfr->rx_payload[2] = 0xCC; /* Dummy CRC */
@@ -59,7 +57,7 @@ class Sht40Test : public ::testing::Test
             return CFN_HAL_ERROR_OK;
         };
 
-        cfn_hal_i2c_populate(&mock_i2c, 0, nullptr, &mock_i2c_api, nullptr, &mock_i2c_cfg, nullptr, nullptr);
+        cfn_hal_i2c_populate(&mock_i2c, 0, nullptr, nullptr, &mock_i2c_api, nullptr, &mock_i2c_cfg, nullptr, nullptr);
 
         i2c_dev.i2c     = &mock_i2c;
         i2c_dev.address = CFN_SAL_SHT40_ADDR_DEFAULT;
@@ -74,18 +72,18 @@ class Sht40Test : public ::testing::Test
 TEST_F(Sht40Test, Lifecycle)
 {
     EXPECT_EQ(cfn_sal_temp_sensor_init(&sht.temp), CFN_HAL_ERROR_OK);
-    EXPECT_EQ(sht.combined_state.init_ref_count, 1);
-    EXPECT_TRUE(sht.combined_state.hw_initialized);
+    EXPECT_EQ(sht.shared.init_ref_count, 1);
+    EXPECT_TRUE(sht.shared.hw_initialized);
 
     EXPECT_EQ(cfn_sal_hum_sensor_init(&sht.hum), CFN_HAL_ERROR_OK);
-    EXPECT_EQ(sht.combined_state.init_ref_count, 2);
+    EXPECT_EQ(sht.shared.init_ref_count, 2);
 
     EXPECT_EQ(cfn_sal_temp_sensor_deinit(&sht.temp), CFN_HAL_ERROR_OK);
-    EXPECT_EQ(sht.combined_state.init_ref_count, 1);
+    EXPECT_EQ(sht.shared.init_ref_count, 1);
 
     EXPECT_EQ(cfn_sal_hum_sensor_deinit(&sht.hum), CFN_HAL_ERROR_OK);
-    EXPECT_EQ(sht.combined_state.init_ref_count, 0);
-    EXPECT_FALSE(sht.combined_state.hw_initialized);
+    EXPECT_EQ(sht.shared.init_ref_count, 0);
+    EXPECT_FALSE(sht.shared.hw_initialized);
 }
 
 TEST_F(Sht40Test, Measurement)
@@ -93,7 +91,12 @@ TEST_F(Sht40Test, Measurement)
     cfn_sal_temp_sensor_init(&sht.temp);
 
     float temp = 0.0f;
-    /* Note: In real test we would need a proper CRC implementation in the mock to pass. */
-    /* For skeleton, we'll just check if it calls the polling function. */
     (void) cfn_sal_temp_sensor_read_celsius(&sht.temp, &temp);
+}
+
+TEST_F(Sht40Test, Getters)
+{
+    EXPECT_EQ(cfn_sal_sht40_get_temp(&sht), &sht.temp);
+    EXPECT_EQ(cfn_sal_sht40_get_hum(&sht), &sht.hum);
+    EXPECT_EQ(cfn_sal_sht40_get_temp(NULL), nullptr);
 }

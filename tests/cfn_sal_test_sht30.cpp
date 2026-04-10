@@ -1,10 +1,10 @@
 /**
  * @file cfn_sal_test_sht30.cpp
- * @brief Unit tests for the SHT30 combined sensor implementation.
+ * @brief Unit tests for the SHT30 composite sensor implementation.
  */
 
 #include <gtest/gtest.h>
-#include "devices/combined_sensor/sht30/cfn_sal_sht30.h"
+#include "devices/composite_sensor/sht30/cfn_sal_sht30.h"
 #include "cfn_hal_i2c.h"
 
 class Sht30Test : public ::testing::Test
@@ -53,7 +53,7 @@ class Sht30Test : public ::testing::Test
             return CFN_HAL_ERROR_OK;
         };
 
-        cfn_hal_i2c_populate(&mock_i2c, 0, nullptr, &mock_i2c_api, nullptr, &mock_i2c_cfg, nullptr, nullptr);
+        cfn_hal_i2c_populate(&mock_i2c, 0, nullptr, nullptr, &mock_i2c_api, nullptr, &mock_i2c_cfg, nullptr, nullptr);
 
         i2c_dev.i2c     = &mock_i2c;
         i2c_dev.address = CFN_SAL_SHT30_ADDR_DEFAULT;
@@ -61,23 +61,29 @@ class Sht30Test : public ::testing::Test
         phy.instance    = &i2c_dev;
         phy.type        = CFN_HAL_PERIPHERAL_TYPE_I2C;
 
-        cfn_sal_sht30_construct(&sht, &phy);
+        cfn_sal_sht30_construct(&sht, &phy, NULL);
     }
 };
 
 TEST_F(Sht30Test, Lifecycle)
 {
     EXPECT_EQ(cfn_sal_temp_sensor_init(&sht.temp), CFN_HAL_ERROR_OK);
-    EXPECT_EQ(sht.combined_state.init_ref_count, 1);
-    EXPECT_TRUE(sht.combined_state.hw_initialized);
+    EXPECT_EQ(sht.shared.init_ref_count, 1);
+    EXPECT_TRUE(sht.shared.hw_initialized);
 
     EXPECT_EQ(cfn_sal_hum_sensor_init(&sht.hum), CFN_HAL_ERROR_OK);
-    EXPECT_EQ(sht.combined_state.init_ref_count, 2);
+    EXPECT_EQ(sht.shared.init_ref_count, 2);
 
     EXPECT_EQ(cfn_sal_temp_sensor_deinit(&sht.temp), CFN_HAL_ERROR_OK);
-    EXPECT_EQ(sht.combined_state.init_ref_count, 1);
+    EXPECT_EQ(sht.shared.init_ref_count, 1);
 
     EXPECT_EQ(cfn_sal_hum_sensor_deinit(&sht.hum), CFN_HAL_ERROR_OK);
-    EXPECT_EQ(sht.combined_state.init_ref_count, 0);
-    EXPECT_FALSE(sht.combined_state.hw_initialized);
+    EXPECT_EQ(sht.shared.init_ref_count, 0);
+    EXPECT_FALSE(sht.shared.hw_initialized);
+}
+
+TEST_F(Sht30Test, Getters)
+{
+    EXPECT_EQ(cfn_sal_sht30_get_temp(&sht), &sht.temp);
+    EXPECT_EQ(cfn_sal_sht30_get_hum(&sht), &sht.hum);
 }

@@ -1,10 +1,10 @@
 /**
  * @file cfn_sal_test_bme280.cpp
- * @brief Unit tests for the BME280 combined sensor implementation.
+ * @brief Unit tests for the BME280 composite sensor implementation.
  */
 
 #include <gtest/gtest.h>
-#include "devices/combined_sensor/bme280/cfn_sal_bme280.h"
+#include "devices/composite_sensor/bme280/cfn_sal_bme280.h"
 #include "cfn_hal_i2c.h"
 
 class Bme280Test : public ::testing::Test
@@ -59,16 +59,16 @@ class Bme280Test : public ::testing::Test
             return CFN_HAL_ERROR_OK;
         };
 
-        cfn_hal_i2c_populate(&mock_i2c, 0, nullptr, &mock_i2c_api, nullptr, &mock_i2c_cfg, nullptr, nullptr);
+        cfn_hal_i2c_populate(&mock_i2c, 0, nullptr, nullptr, &mock_i2c_api, nullptr, &mock_i2c_cfg, nullptr, nullptr);
 
         i2c_dev.i2c     = &mock_i2c;
-        i2c_dev.address = CFN_SAL_BME280_ADDR_DEFAULT;
+        i2c_dev.address = 0x76;
 
         phy.instance    = &i2c_dev;
         phy.type        = CFN_HAL_PERIPHERAL_TYPE_I2C;
 
         /* Construct the composite sensor */
-        cfn_sal_bme280_construct(&bme, &phy, NULL);
+        cfn_sal_bme280_construct(&bme, &phy, NULL, NULL);
     }
 };
 
@@ -76,25 +76,32 @@ TEST_F(Bme280Test, SharedInitialization)
 {
     /* Initialize temperature sensor */
     EXPECT_EQ(cfn_sal_temp_sensor_init(&bme.temp), CFN_HAL_ERROR_OK);
-    EXPECT_EQ(bme.combined_state.init_ref_count, 1);
-    EXPECT_TRUE(bme.combined_state.hw_initialized);
+    EXPECT_EQ(bme.shared.init_ref_count, 1);
+    EXPECT_TRUE(bme.shared.hw_initialized);
 
     /* Initialize humidity sensor */
     EXPECT_EQ(cfn_sal_hum_sensor_init(&bme.hum), CFN_HAL_ERROR_OK);
-    EXPECT_EQ(bme.combined_state.init_ref_count, 2);
+    EXPECT_EQ(bme.shared.init_ref_count, 2);
 
     /* Initialize pressure sensor */
     EXPECT_EQ(cfn_sal_pressure_sensor_init(&bme.press), CFN_HAL_ERROR_OK);
-    EXPECT_EQ(bme.combined_state.init_ref_count, 3);
+    EXPECT_EQ(bme.shared.init_ref_count, 3);
 
     /* Deinit one */
     EXPECT_EQ(cfn_sal_temp_sensor_deinit(&bme.temp), CFN_HAL_ERROR_OK);
-    EXPECT_EQ(bme.combined_state.init_ref_count, 2);
-    EXPECT_TRUE(bme.combined_state.hw_initialized);
+    EXPECT_EQ(bme.shared.init_ref_count, 2);
+    EXPECT_TRUE(bme.shared.hw_initialized);
 
     /* Deinit remaining */
     EXPECT_EQ(cfn_sal_hum_sensor_deinit(&bme.hum), CFN_HAL_ERROR_OK);
     EXPECT_EQ(cfn_sal_pressure_sensor_deinit(&bme.press), CFN_HAL_ERROR_OK);
-    EXPECT_EQ(bme.combined_state.init_ref_count, 0);
-    EXPECT_FALSE(bme.combined_state.hw_initialized);
+    EXPECT_EQ(bme.shared.init_ref_count, 0);
+    EXPECT_FALSE(bme.shared.hw_initialized);
+}
+
+TEST_F(Bme280Test, Getters)
+{
+    EXPECT_EQ(cfn_sal_bme280_get_temp(&bme), &bme.temp);
+    EXPECT_EQ(cfn_sal_bme280_get_hum(&bme), &bme.hum);
+    EXPECT_EQ(cfn_sal_bme280_get_press(&bme), &bme.press);
 }

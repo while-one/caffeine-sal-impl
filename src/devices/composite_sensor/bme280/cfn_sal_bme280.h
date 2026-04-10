@@ -1,6 +1,6 @@
 /**
  * @file cfn_sal_bme280.h
- * @brief BME280 combined sensor (Temperature, Humidity, Pressure) implementation.
+ * @brief BME280 composite sensor (Temperature, Humidity, Pressure) implementation.
  */
 
 #ifndef CFN_SAL_BME280_H
@@ -11,24 +11,22 @@ extern "C"
 {
 #endif
 
+/* Includes ---------------------------------------------------------*/
 #include "cfn_sal.h"
-#include "devices/cfn_sal_temp_sensor.h"
+#include "devices/cfn_sal_composite.h"
 #include "devices/cfn_sal_hum_sensor.h"
 #include "devices/cfn_sal_pressure_sensor.h"
+#include "devices/cfn_sal_temp_sensor.h"
 #include "utilities/cfn_sal_timekeeping.h"
 
-/* -------------------------------------------------------------------------- */
-/* Constants                                                                  */
-/* -------------------------------------------------------------------------- */
+/* Constants --------------------------------------------------------*/
 
 #define CFN_SAL_BME280_ADDR_0 0x76 /*!< SDO pin tied to GND */
 #define CFN_SAL_BME280_ADDR_1 0x77 /*!< SDO pin tied to VDD */
 
 #define CFN_SAL_BME280_ADDR_DEFAULT CFN_SAL_BME280_ADDR_0
 
-/* -------------------------------------------------------------------------- */
-/* Types                                                                      */
-/* -------------------------------------------------------------------------- */
+/* Types ------------------------------------------------------------*/
 
 /**
  * @brief BME280 factory calibration data.
@@ -66,7 +64,7 @@ typedef struct
     cfn_sal_hum_sensor_t      hum;   /*!< Polymorphic Humidity Interface */
     cfn_sal_pressure_sensor_t press; /*!< Polymorphic Pressure Interface */
 
-    cfn_sal_combined_state_t combined_state; /*!< Standard Framework Shared State */
+    cfn_sal_composite_shared_t shared; /*!< Shared Framework State (PHY, ref count) */
 
     cfn_sal_bme280_calibration_t calib; /*!< Factory trim parameters */
 
@@ -82,9 +80,7 @@ typedef struct
     float    cached_press;
 } cfn_sal_bme280_t;
 
-/* -------------------------------------------------------------------------- */
-/* Public API                                                                 */
-/* -------------------------------------------------------------------------- */
+/* Public API -------------------------------------------------------*/
 
 /**
  * @brief BME280 monolithic constructor.
@@ -92,11 +88,14 @@ typedef struct
  *
  * @param sensor      Pointer to the composite sensor structure.
  * @param phy         Pointer to the physical interface mapping.
+ * @param dependency  Optional pointer to a dependency for hardware binding (e.g. DMA).
  * @param time_source Optional pointer to a timekeeping service for caching logic.
  * @return CFN_HAL_ERROR_OK on success.
  */
-cfn_hal_error_code_t
-cfn_sal_bme280_construct(cfn_sal_bme280_t *sensor, const cfn_sal_phy_t *phy, cfn_sal_timekeeping_t *time_source);
+cfn_hal_error_code_t cfn_sal_bme280_construct(cfn_sal_bme280_t      *sensor,
+                                              const cfn_sal_phy_t   *phy,
+                                              void                  *dependency,
+                                              cfn_sal_timekeeping_t *time_source);
 
 /**
  * @brief BME280 destructor.
@@ -104,7 +103,42 @@ cfn_sal_bme280_construct(cfn_sal_bme280_t *sensor, const cfn_sal_phy_t *phy, cfn
  * @param sensor Pointer to the composite sensor structure.
  * @return CFN_HAL_ERROR_OK on success.
  */
-cfn_hal_error_code_t cfn_sal_bme280_destruct(const cfn_sal_bme280_t *sensor);
+cfn_hal_error_code_t cfn_sal_bme280_destruct(cfn_sal_bme280_t *sensor);
+
+/* Getters ----------------------------------------------------------*/
+
+/**
+ * @brief Get the abstract Temperature interface from the BME280 composite sensor.
+ *
+ * @param driver Pointer to the BME280 composite sensor structure.
+ * @return Pointer to the Temperature interface, or NULL if driver is NULL.
+ */
+static inline cfn_sal_temp_sensor_t *cfn_sal_bme280_get_temp(cfn_sal_bme280_t *driver)
+{
+    return (driver == NULL) ? NULL : &driver->temp;
+}
+
+/**
+ * @brief Get the abstract Humidity interface from the BME280 composite sensor.
+ *
+ * @param driver Pointer to the BME280 composite sensor structure.
+ * @return Pointer to the Humidity interface, or NULL if driver is NULL.
+ */
+static inline cfn_sal_hum_sensor_t *cfn_sal_bme280_get_hum(cfn_sal_bme280_t *driver)
+{
+    return (driver == NULL) ? NULL : &driver->hum;
+}
+
+/**
+ * @brief Get the abstract Pressure interface from the BME280 composite sensor.
+ *
+ * @param driver Pointer to the BME280 composite sensor structure.
+ * @return Pointer to the Pressure interface, or NULL if driver is NULL.
+ */
+static inline cfn_sal_pressure_sensor_t *cfn_sal_bme280_get_press(cfn_sal_bme280_t *driver)
+{
+    return (driver == NULL) ? NULL : &driver->press;
+}
 
 #ifdef __cplusplus
 }

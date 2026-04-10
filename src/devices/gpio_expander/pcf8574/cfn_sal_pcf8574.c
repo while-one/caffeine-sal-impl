@@ -142,7 +142,8 @@ static const cfn_hal_gpio_api_t PCF8574_API = {
 
 /* Public Functions -------------------------------------------------*/
 
-cfn_hal_error_code_t cfn_sal_pcf8574_construct(cfn_sal_pcf8574_t *driver, const cfn_sal_phy_t *phy)
+cfn_hal_error_code_t cfn_sal_pcf8574_construct(
+    cfn_sal_pcf8574_t *driver, const cfn_sal_phy_t *phy, void *dependency, cfn_hal_callback_t callback, void *user_arg)
 {
     if (!driver || !phy)
     {
@@ -150,17 +151,19 @@ cfn_hal_error_code_t cfn_sal_pcf8574_construct(cfn_sal_pcf8574_t *driver, const 
     }
 
     driver->phy = *phy;
-    cfn_hal_gpio_populate(&driver->hal_gpio, 0, NULL, &PCF8574_API, NULL, NULL, NULL);
+    cfn_hal_gpio_populate(
+        &driver->hal_gpio, 0, NULL, dependency, &PCF8574_API, NULL, (cfn_hal_gpio_callback_t) callback, user_arg);
 
     return CFN_HAL_ERROR_OK;
 }
 
 cfn_hal_error_code_t cfn_sal_pcf8574_destruct(cfn_sal_pcf8574_t *driver)
 {
-    if (!driver)
+    if (driver == NULL)
     {
         return CFN_HAL_ERROR_BAD_PARAM;
     }
 
-    return cfn_hal_gpio_deinit(&driver->hal_gpio);
+    cfn_hal_gpio_populate(&driver->hal_gpio, 0, NULL, NULL, NULL, NULL, NULL, NULL);
+    return CFN_HAL_ERROR_OK;
 }

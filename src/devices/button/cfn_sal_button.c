@@ -111,6 +111,7 @@ static const cfn_sal_button_api_t API = {
 cfn_hal_error_code_t cfn_sal_button_construct(cfn_sal_button_t              *driver,
                                               const cfn_sal_button_config_t *config,
                                               const cfn_sal_phy_t           *phy,
+                                              void                          *dependency,
                                               cfn_sal_button_callback_t      callback,
                                               void                          *user_arg)
 {
@@ -118,7 +119,7 @@ cfn_hal_error_code_t cfn_sal_button_construct(cfn_sal_button_t              *dri
     {
         return CFN_HAL_ERROR_BAD_PARAM;
     }
-    cfn_sal_button_populate(driver, 0, &API, phy, config, callback, user_arg);
+    cfn_sal_button_populate(driver, 0, dependency, &API, phy, config, callback, user_arg);
     return CFN_HAL_ERROR_OK;
 }
 
@@ -128,6 +129,6 @@ cfn_hal_error_code_t cfn_sal_button_destruct(cfn_sal_button_t *driver)
     {
         return CFN_HAL_ERROR_BAD_PARAM;
     }
-    cfn_sal_button_populate(driver, 0, NULL, NULL, NULL, NULL, NULL);
+    cfn_sal_button_populate(driver, 0, NULL, NULL, NULL, NULL, NULL, NULL);
     return CFN_HAL_ERROR_OK;
 }

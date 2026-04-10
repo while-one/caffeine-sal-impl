@@ -1,12 +1,16 @@
 #include "devices/cfn_sal_accel.h"
-#include "cfn_sal_accel_bma530_port.h"
+#include "cfn_sal_accel_bma530.h"
 #include "cfn_hal_i2c.h"
+#include "cfn_hal_util.h"
 #include <string.h>
 
 #define BMA530_I2C_ADDR   0x18
 #define BMA530_REG_DATA_X 0x02
 #define BMA530_REG_DATA_Y 0x04
 #define BMA530_REG_DATA_Z 0x06
+
+#define BMA530_I2C_TIMEOUT_MS      100
+#define BMA530_SENSITIVITY_DEFAULT 1.0F
 
 static cfn_hal_error_code_t port_base_init(cfn_hal_driver_t *base)
 {
@@ -86,12 +90,13 @@ static cfn_hal_error_code_t port_read_xyz_raw(cfn_sal_accel_t *driver, cfn_sal_a
         .dev_addr = BMA530_I2C_ADDR, .mem_addr = BMA530_REG_DATA_X, .mem_addr_size = 1, .data = data, .size = 6
     };
 
-    cfn_hal_error_code_t err = cfn_hal_i2c_mem_read(i2c, &xfr, 100);
+    cfn_hal_error_code_t err = cfn_hal_i2c_mem_read(i2c, &xfr, BMA530_I2C_TIMEOUT_MS);
     if (err == CFN_HAL_ERROR_OK)
     {
-        data_out->x = (int16_t) ((data[1] << 8) | data[0]);
-        data_out->y = (int16_t) ((data[3] << 8) | data[2]);
-        data_out->z = (int16_t) ((data[5] << 8) | data[4]);
+        /* Reconstruct 16-bit signed acceleration data from pairs of unsigned bytes (Little Endian) */
+        data_out->x = cfn_util_bytes_to_int16_le(data[1], data[0]);
+        data_out->y = cfn_util_bytes_to_int16_le(data[3], data[2]);
+        data_out->z = cfn_util_bytes_to_int16_le(data[5], data[4]);
     }
     return err;
 }
@@ -106,10 +111,9 @@ static cfn_hal_error_code_t port_read_xyz_mg(cfn_sal_accel_t *driver, cfn_sal_ac
     }
 
     /* Conversion logic based on range */
-    float sensitivity = 1.0f; // placeholder
-    data_out->x       = (int32_t) ((float) raw.x * sensitivity);
-    data_out->y       = (int32_t) ((float) raw.y * sensitivity);
-    data_out->z       = (int32_t) ((float) raw.z * sensitivity);
+    data_out->x = (int32_t) ((float) raw.x * BMA530_SENSITIVITY_DEFAULT);
+    data_out->y = (int32_t) ((float) raw.y * BMA530_SENSITIVITY_DEFAULT);
+    data_out->z = (int32_t) ((float) raw.z * BMA530_SENSITIVITY_DEFAULT);
 
     return CFN_HAL_ERROR_OK;
 }
@@ -140,6 +144,7 @@ static const cfn_sal_accel_api_t API = {
 cfn_hal_error_code_t cfn_sal_accel_bma530_construct(cfn_sal_accel_t              *driver,
                                                     const cfn_sal_accel_config_t *config,
                                                     const cfn_sal_phy_t          *phy,
+                                                    void                         *dependency,
                                                     cfn_sal_accel_callback_t      callback,
                                                     void                         *user_arg)
 {
@@ -147,7 +152,7 @@ cfn_hal_error_code_t cfn_sal_accel_bma530_construct(cfn_sal_accel_t             
     {
         return CFN_HAL_ERROR_BAD_PARAM;
     }
-    cfn_sal_accel_populate(driver, 0, &API, phy, config, callback, user_arg);
+    cfn_sal_accel_populate(driver, 0, dependency, &API, phy, config, callback, user_arg);
     return CFN_HAL_ERROR_OK;
 }
 
@@ -157,6 +162,6 @@ cfn_hal_error_code_t cfn_sal_accel_bma530_destruct(cfn_sal_accel_t *driver)
     {
         return CFN_HAL_ERROR_BAD_PARAM;
     }
-    cfn_sal_accel_populate(driver, 0, NULL, NULL, NULL, NULL, NULL);
+    cfn_sal_accel_populate(driver, 0, NULL, NULL, NULL, NULL, NULL, NULL);
     return CFN_HAL_ERROR_OK;
 }

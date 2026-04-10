@@ -1,10 +1,10 @@
 /**
  * @file cfn_sal_test_aht20.cpp
- * @brief Unit tests for the AHT20 combined sensor implementation.
+ * @brief Unit tests for the AHT20 composite sensor implementation.
  */
 
 #include <gtest/gtest.h>
-#include "devices/combined_sensor/aht20/cfn_sal_aht20.h"
+#include "devices/composite_sensor/aht20/cfn_sal_aht20.h"
 #include "cfn_hal_i2c.h"
 
 class Aht20Test : public ::testing::Test
@@ -59,7 +59,7 @@ class Aht20Test : public ::testing::Test
             return CFN_HAL_ERROR_OK;
         };
 
-        cfn_hal_i2c_populate(&mock_i2c, 0, nullptr, &mock_i2c_api, nullptr, &mock_i2c_cfg, nullptr, nullptr);
+        cfn_hal_i2c_populate(&mock_i2c, 0, nullptr, nullptr, &mock_i2c_api, nullptr, &mock_i2c_cfg, nullptr, nullptr);
 
         i2c_dev.i2c     = &mock_i2c;
         i2c_dev.address = CFN_SAL_AHT20_ADDR_DEFAULT;
@@ -67,23 +67,29 @@ class Aht20Test : public ::testing::Test
         phy.instance    = &i2c_dev;
         phy.type        = CFN_HAL_PERIPHERAL_TYPE_I2C;
 
-        cfn_sal_aht20_construct(&aht, &phy, NULL);
+        cfn_sal_aht20_construct(&aht, &phy, NULL, NULL);
     }
 };
 
 TEST_F(Aht20Test, Lifecycle)
 {
     EXPECT_EQ(cfn_sal_temp_sensor_init(&aht.temp), CFN_HAL_ERROR_OK);
-    EXPECT_EQ(aht.combined_state.init_ref_count, 1);
-    EXPECT_TRUE(aht.combined_state.hw_initialized);
+    EXPECT_EQ(aht.shared.init_ref_count, 1);
+    EXPECT_TRUE(aht.shared.hw_initialized);
 
     EXPECT_EQ(cfn_sal_hum_sensor_init(&aht.hum), CFN_HAL_ERROR_OK);
-    EXPECT_EQ(aht.combined_state.init_ref_count, 2);
+    EXPECT_EQ(aht.shared.init_ref_count, 2);
 
     EXPECT_EQ(cfn_sal_temp_sensor_deinit(&aht.temp), CFN_HAL_ERROR_OK);
-    EXPECT_EQ(aht.combined_state.init_ref_count, 1);
+    EXPECT_EQ(aht.shared.init_ref_count, 1);
 
     EXPECT_EQ(cfn_sal_hum_sensor_deinit(&aht.hum), CFN_HAL_ERROR_OK);
-    EXPECT_EQ(aht.combined_state.init_ref_count, 0);
-    EXPECT_FALSE(aht.combined_state.hw_initialized);
+    EXPECT_EQ(aht.shared.init_ref_count, 0);
+    EXPECT_FALSE(aht.shared.hw_initialized);
+}
+
+TEST_F(Aht20Test, Getters)
+{
+    EXPECT_EQ(cfn_sal_aht20_get_temp(&aht), &aht.temp);
+    EXPECT_EQ(cfn_sal_aht20_get_hum(&aht), &aht.hum);
 }

@@ -1,10 +1,11 @@
 /**
  * @file cfn_sal_sht40.c
- * @brief SHT40 combined sensor (Temperature and Humidity) implementation.
+ * @brief SHT40 composite sensor (Temperature and Humidity) implementation.
  */
 
 #include "cfn_sal_sht40.h"
 #include "cfn_hal_i2c.h"
+#include "cfn_hal_util.h"
 
 /* -------------------------------------------------------------------------- */
 /* Private Constants                                                          */
@@ -12,6 +13,14 @@
 
 #define SHT40_CMD_MEAS_HIGH_PREC 0xFD
 #define SHT40_CMD_SOFT_RESET     0x94
+
+#define SHT40_I2C_TIMEOUT_MS 100
+
+#define SHT40_ADC_MAX_VAL_F32 65535.0F
+#define SHT40_TEMP_SCALE_F32  175.0F
+#define SHT40_TEMP_OFFSET_F32 45.0F
+#define SHT40_HUM_SCALE_F32   125.0F
+#define SHT40_HUM_OFFSET_F32  6.0F
 
 /* -------------------------------------------------------------------------- */
 /* Internal Helpers                                                           */
@@ -25,13 +34,13 @@ static uint8_t crc8(const uint8_t *data, size_t len)
         crc ^= data[i];
         for (int j = 0; j < 8; j++)
         {
-            if (crc & 0x80)
+            if (crc & 0x80U)
             {
-                crc = (uint8_t) ((crc << 1) ^ 0x31);
+                crc = (uint8_t) (((uint32_t) crc << 1U) ^ 0x31U);
             }
             else
             {
-                crc <<= 1;
+                crc <<= 1U;
             }
         }
     }
@@ -63,9 +72,9 @@ static cfn_hal_error_code_t sht40_shared_init(cfn_hal_driver_t *base)
         return CFN_HAL_ERROR_BAD_PARAM;
     }
 
-    if (sht->combined_state.init_ref_count == 0)
+    if (sht->shared.init_ref_count == 0)
     {
-        cfn_hal_i2c_device_t *dev = (cfn_hal_i2c_device_t *) sht->combined_state.phy->instance;
+        cfn_hal_i2c_device_t *dev = (cfn_hal_i2c_device_t *) sht->shared.phy->instance;
         if (!dev->i2c)
         {
             return CFN_HAL_ERROR_BAD_PARAM;
@@ -77,11 +86,11 @@ static cfn_hal_error_code_t sht40_shared_init(cfn_hal_driver_t *base)
             return err;
         }
 
-        sht->combined_state.hw_initialized = true;
-        sht->last_read_timestamp_ms        = 0;
+        sht->shared.hw_initialized  = true;
+        sht->last_read_timestamp_ms = 0;
     }
 
-    sht->combined_state.init_ref_count++;
+    sht->shared.init_ref_count++;
     return CFN_HAL_ERROR_OK;
 }
 
@@ -93,15 +102,15 @@ static cfn_hal_error_code_t sht40_shared_deinit(cfn_hal_driver_t *base)
         return CFN_HAL_ERROR_BAD_PARAM;
     }
 
-    if (sht->combined_state.init_ref_count > 0)
+    if (sht->shared.init_ref_count > 0)
     {
-        sht->combined_state.init_ref_count--;
+        sht->shared.init_ref_count--;
 
-        if (sht->combined_state.init_ref_count == 0)
+        if (sht->shared.init_ref_count == 0)
         {
-            cfn_hal_i2c_device_t *dev = (cfn_hal_i2c_device_t *) sht->combined_state.phy->instance;
+            cfn_hal_i2c_device_t *dev = (cfn_hal_i2c_device_t *) sht->shared.phy->instance;
             cfn_hal_i2c_deinit(dev->i2c);
-            sht->combined_state.hw_initialized = false;
+            sht->shared.hw_initialized = false;
         }
     }
 
@@ -120,12 +129,12 @@ static cfn_hal_error_code_t sht40_perform_read(cfn_sal_sht40_t *sht)
         use_caching = true;
     }
 
-    if (use_caching && sht->combined_state.hw_initialized && (now - sht->last_read_timestamp_ms < 10))
+    if (use_caching && sht->shared.hw_initialized && (now - sht->last_read_timestamp_ms < 10))
     {
         return CFN_HAL_ERROR_OK;
     }
 
-    cfn_hal_i2c_device_t *dev     = (cfn_hal_i2c_device_t *) sht->combined_state.phy->instance;
+    cfn_hal_i2c_device_t *dev     = (cfn_hal_i2c_device_t *) sht->shared.phy->instance;
 
     uint8_t                   cmd = SHT40_CMD_MEAS_HIGH_PREC;
     uint8_t                   buffer[6];
@@ -135,7 +144,7 @@ static cfn_hal_error_code_t sht40_perform_read(cfn_sal_sht40_t *sht)
                                       .rx_payload      = buffer,
                                       .nbr_of_rx_bytes = 6 };
 
-    cfn_hal_error_code_t err      = cfn_hal_i2c_xfr_polling(dev->i2c, &xfr, 100);
+    cfn_hal_error_code_t err      = cfn_hal_i2c_xfr_polling(dev->i2c, &xfr, SHT40_I2C_TIMEOUT_MS);
     if (err != CFN_HAL_ERROR_OK)
     {
         return err;
@@ -148,21 +157,14 @@ static cfn_hal_error_code_t sht40_perform_read(cfn_sal_sht40_t *sht)
     }
 
     /* Math conversions */
-    uint16_t t_raw           = (uint16_t) ((buffer[0] << 8) | buffer[1]);
-    uint16_t rh_raw          = (uint16_t) ((buffer[3] << 8) | buffer[4]);
+    uint16_t t_raw           = (uint16_t) cfn_util_bytes_to_int16_le(buffer[0], buffer[1]);
+    uint16_t rh_raw          = (uint16_t) cfn_util_bytes_to_int16_le(buffer[3], buffer[4]);
 
-    sht->cached_temp_celsius = -45.0f + (175.0f * (float) t_raw) / 65535.0f;
-    sht->cached_hum_rh       = -6.0f + (125.0f * (float) rh_raw) / 65535.0f;
+    sht->cached_temp_celsius = -SHT40_TEMP_OFFSET_F32 + (SHT40_TEMP_SCALE_F32 * (float) t_raw) / SHT40_ADC_MAX_VAL_F32;
+    sht->cached_hum_rh       = -SHT40_HUM_OFFSET_F32 + (SHT40_HUM_SCALE_F32 * (float) rh_raw) / SHT40_ADC_MAX_VAL_F32;
 
-    /* Clamp humidity to [0, 100] per datasheet */
-    if (sht->cached_hum_rh < 0.0f)
-    {
-        sht->cached_hum_rh = 0.0f;
-    }
-    if (sht->cached_hum_rh > 100.0f)
-    {
-        sht->cached_hum_rh = 100.0f;
-    }
+    /* Clamp humidity to [0, 100] per datasheet using utilities */
+    sht->cached_hum_rh       = cfn_util_clamp_f32(sht->cached_hum_rh, 0.0F, 100.0F);
 
     sht->last_read_timestamp_ms = now;
 
@@ -194,7 +196,7 @@ static cfn_hal_error_code_t sht40_temp_read_fahrenheit(cfn_sal_temp_sensor_t *dr
     cfn_hal_error_code_t err = sht40_temp_read_celsius(driver, &celsius);
     if (err == CFN_HAL_ERROR_OK && temp_out)
     {
-        *temp_out = (celsius * 9.0f / 5.0f) + 32.0f;
+        *temp_out = (celsius * 9.0F / 5.0F) + 32.0F;
     }
     return err;
 }
@@ -209,7 +211,7 @@ static cfn_hal_error_code_t sht40_temp_read_raw(cfn_sal_temp_sensor_t *driver, i
     cfn_hal_error_code_t err = sht40_perform_read(sht);
     if (err == CFN_HAL_ERROR_OK)
     {
-        *raw_out = (int32_t) (sht->cached_temp_celsius * 100.0f);
+        *raw_out = (int32_t) (sht->cached_temp_celsius * 100.0F);
     }
     return err;
 }
@@ -243,7 +245,7 @@ static cfn_hal_error_code_t sht40_hum_read_raw(cfn_sal_hum_sensor_t *driver, int
     cfn_hal_error_code_t err = sht40_perform_read(sht);
     if (err == CFN_HAL_ERROR_OK)
     {
-        *raw_out = (int32_t) (sht->cached_hum_rh * 100.0f);
+        *raw_out = (int32_t) (sht->cached_hum_rh * 100.0F);
     }
     return err;
 }
@@ -273,23 +275,24 @@ cfn_sal_sht40_construct(cfn_sal_sht40_t *sensor, const cfn_sal_phy_t *phy, cfn_s
         return CFN_HAL_ERROR_BAD_PARAM;
     }
 
-    sensor->combined_state.phy            = phy;
-    sensor->combined_state.init_ref_count = 0;
-    sensor->combined_state.hw_initialized = false;
-    sensor->last_read_timestamp_ms        = 0;
+    cfn_sal_composite_init(&sensor->shared, phy);
+    sensor->last_read_timestamp_ms = 0;
 
-    cfn_sal_temp_sensor_populate(&sensor->temp, 0, &TEMP_API, phy, NULL, NULL, NULL);
-    cfn_sal_hum_sensor_populate(&sensor->hum, 0, &HUM_API, phy, NULL, NULL, NULL);
-
-    /* Inject time source as a dependency for caching */
-    sensor->temp.base.dependency = time_source;
-    sensor->hum.base.dependency  = time_source;
+    cfn_sal_temp_sensor_populate(&sensor->temp, 0, (void *) time_source, &TEMP_API, phy, NULL, NULL, NULL);
+    cfn_sal_hum_sensor_populate(&sensor->hum, 0, (void *) time_source, &HUM_API, phy, NULL, NULL, NULL);
 
     return CFN_HAL_ERROR_OK;
 }
 
-cfn_hal_error_code_t cfn_sal_sht40_destruct(const cfn_sal_sht40_t *sensor)
+cfn_hal_error_code_t cfn_sal_sht40_destruct(cfn_sal_sht40_t *sensor)
 {
-    CFN_HAL_UNUSED(sensor);
+    if (sensor == NULL)
+    {
+        return CFN_HAL_ERROR_BAD_PARAM;
+    }
+
+    cfn_sal_temp_sensor_populate(&sensor->temp, 0, NULL, NULL, NULL, NULL, NULL, NULL);
+    cfn_sal_hum_sensor_populate(&sensor->hum, 0, NULL, NULL, NULL, NULL, NULL, NULL);
+
     return CFN_HAL_ERROR_OK;
 }
