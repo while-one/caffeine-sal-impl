@@ -1,22 +1,29 @@
 /**
  * @file cfn_sal_sht30.c
- * @brief SHT30 combined sensor implementation.
+ * @brief SHT30 composite sensor implementation.
  */
 
 #include "cfn_sal_sht30.h"
 #include "cfn_hal_i2c.h"
+#include "cfn_hal_util.h"
 #include <stddef.h>
 
 /* -------------------------------------------------------------------------- */
 /* Constants & Definitions                                                    */
 /* -------------------------------------------------------------------------- */
 
-#define SHT30_CMD_MEAS_HIGH_REP  0x2400
-#define SHT30_CMD_SOFT_RESET     0x30A2
-#define SHT30_CMD_HEATER_ENABLE  0x306D
-#define SHT30_CMD_HEATER_DISABLE 0x3066
+#define SHT30_CMD_MEAS_HIGH_REP  0x2400UL
+#define SHT30_CMD_SOFT_RESET     0x30A2UL
+#define SHT30_CMD_HEATER_ENABLE  0x306DUL
+#define SHT30_CMD_HEATER_DISABLE 0x3066UL
 
-#define SHT30_MEAS_DELAY_MS 15
+#define SHT30_MEAS_DELAY_MS  15
+#define SHT30_I2C_TIMEOUT_MS 100
+
+#define SHT30_ADC_MAX_VAL_F32 65535.0F
+#define SHT30_TEMP_SCALE_F32  175.0F
+#define SHT30_TEMP_OFFSET_F32 45.0F
+#define SHT30_HUM_SCALE_F32   100.0F
 
 /* -------------------------------------------------------------------------- */
 /* Internal Helpers                                                           */
@@ -30,13 +37,13 @@ static uint8_t crc8_sht30(const uint8_t *data, size_t len)
         crc ^= data[i];
         for (size_t j = 0; j < 8; j++)
         {
-            if (crc & 0x80)
+            if (crc & 0x80UL)
             {
-                crc = (crc << 1) ^ 0x31;
+                crc = (uint8_t) (((uint32_t) crc << 1U) ^ 0x31U);
             }
             else
             {
-                crc <<= 1;
+                crc <<= 1U;
             }
         }
     }
@@ -47,11 +54,12 @@ static cfn_sal_sht30_t *get_sht30_from_base(cfn_hal_driver_t *base)
 {
     if (base->type == CFN_SAL_TYPE_TEMP_SENSOR)
     {
-        return CFN_HAL_CONTAINER_OF(base, cfn_sal_sht30_t, temp.base);
+        return CFN_HAL_CONTAINER_OF(base, cfn_sal_sht30_t, temp);
     }
-    else if (base->type == CFN_SAL_TYPE_HUM_SENSOR)
+
+    if (base->type == CFN_SAL_TYPE_HUM_SENSOR)
     {
-        return CFN_HAL_CONTAINER_OF(base, cfn_sal_sht30_t, hum.base);
+        return CFN_HAL_CONTAINER_OF(base, cfn_sal_sht30_t, hum);
     }
     return NULL;
 }
@@ -59,14 +67,14 @@ static cfn_sal_sht30_t *get_sht30_from_base(cfn_hal_driver_t *base)
 static cfn_hal_error_code_t sht30_shared_init(cfn_hal_driver_t *base)
 {
     cfn_sal_sht30_t *sht = get_sht30_from_base(base);
-    if (!sht || !sht->combined_state.phy || !sht->combined_state.phy->instance)
+    if (!sht || !sht->shared.phy || !sht->shared.phy->instance)
     {
         return CFN_HAL_ERROR_BAD_PARAM;
     }
 
-    if (sht->combined_state.init_ref_count == 0)
+    if (sht->shared.init_ref_count == 0)
     {
-        cfn_hal_i2c_device_t *dev = (cfn_hal_i2c_device_t *) sht->combined_state.phy->instance;
+        cfn_hal_i2c_device_t *dev = (cfn_hal_i2c_device_t *) sht->shared.phy->instance;
         if (!dev->i2c)
         {
             return CFN_HAL_ERROR_BAD_PARAM;
@@ -78,10 +86,10 @@ static cfn_hal_error_code_t sht30_shared_init(cfn_hal_driver_t *base)
             return err;
         }
 
-        sht->combined_state.hw_initialized = true;
+        sht->shared.hw_initialized = true;
     }
 
-    sht->combined_state.init_ref_count++;
+    sht->shared.init_ref_count++;
     return CFN_HAL_ERROR_OK;
 }
 
@@ -93,15 +101,15 @@ static cfn_hal_error_code_t sht30_shared_deinit(cfn_hal_driver_t *base)
         return CFN_HAL_ERROR_BAD_PARAM;
     }
 
-    if (sht->combined_state.init_ref_count > 0)
+    if (sht->shared.init_ref_count > 0)
     {
-        sht->combined_state.init_ref_count--;
+        sht->shared.init_ref_count--;
 
-        if (sht->combined_state.init_ref_count == 0)
+        if (sht->shared.init_ref_count == 0)
         {
-            cfn_hal_i2c_device_t *dev = (cfn_hal_i2c_device_t *) sht->combined_state.phy->instance;
+            cfn_hal_i2c_device_t *dev = (cfn_hal_i2c_device_t *) sht->shared.phy->instance;
             cfn_hal_i2c_deinit(dev->i2c);
-            sht->combined_state.hw_initialized = false;
+            sht->shared.hw_initialized = false;
         }
     }
 
@@ -110,17 +118,17 @@ static cfn_hal_error_code_t sht30_shared_deinit(cfn_hal_driver_t *base)
 
 static cfn_hal_error_code_t sht30_perform_read(cfn_sal_sht30_t *sht)
 {
-    cfn_hal_i2c_device_t *dev        = (cfn_hal_i2c_device_t *) sht->combined_state.phy->instance;
+    cfn_hal_i2c_device_t *dev = (cfn_hal_i2c_device_t *) sht->shared.phy->instance;
 
-    uint8_t                   cmd[2] = { (SHT30_CMD_MEAS_HIGH_REP >> 8) & 0xFF, SHT30_CMD_MEAS_HIGH_REP & 0xFF };
-    uint8_t                   buffer[6];
+    uint8_t cmd[2] = { cfn_util_get_msb16(SHT30_CMD_MEAS_HIGH_REP), cfn_util_get_lsb16(SHT30_CMD_MEAS_HIGH_REP) };
+    uint8_t buffer[6];
     cfn_hal_i2c_transaction_t xfr = { .slave_address   = dev->address,
                                       .tx_payload      = cmd,
                                       .nbr_of_tx_bytes = 2,
                                       .rx_payload      = buffer,
                                       .nbr_of_rx_bytes = 6 };
 
-    cfn_hal_error_code_t err      = cfn_hal_i2c_xfr_polling(dev->i2c, &xfr, 100);
+    cfn_hal_error_code_t err      = cfn_hal_i2c_xfr_polling(dev->i2c, &xfr, SHT30_I2C_TIMEOUT_MS);
     if (err != CFN_HAL_ERROR_OK)
     {
         return err;
@@ -131,11 +139,11 @@ static cfn_hal_error_code_t sht30_perform_read(cfn_sal_sht30_t *sht)
         return CFN_HAL_ERROR_DATA_CRC;
     }
 
-    uint16_t t_raw           = (buffer[0] << 8) | buffer[1];
-    uint16_t rh_raw          = (buffer[3] << 8) | buffer[4];
+    uint16_t t_raw           = (uint16_t) cfn_util_bytes_to_int16_le(buffer[0], buffer[1]);
+    uint16_t rh_raw          = (uint16_t) cfn_util_bytes_to_int16_le(buffer[3], buffer[4]);
 
-    sht->cached_temp_celsius = -45.0f + (175.0f * (float) t_raw) / 65535.0f;
-    sht->cached_hum_rh       = (100.0f * (float) rh_raw) / 65535.0f;
+    sht->cached_temp_celsius = -SHT30_TEMP_OFFSET_F32 + (SHT30_TEMP_SCALE_F32 * (float) t_raw) / SHT30_ADC_MAX_VAL_F32;
+    sht->cached_hum_rh       = (SHT30_HUM_SCALE_F32 * (float) rh_raw) / SHT30_ADC_MAX_VAL_F32;
 
     return CFN_HAL_ERROR_OK;
 }
@@ -165,7 +173,7 @@ static cfn_hal_error_code_t sht30_temp_read_fahrenheit(cfn_sal_temp_sensor_t *dr
     cfn_hal_error_code_t err = sht30_temp_read_celsius(driver, &celsius);
     if (err == CFN_HAL_ERROR_OK && temp_out)
     {
-        *temp_out = (celsius * 9.0f / 5.0f) + 32.0f;
+        *temp_out = (celsius * 9.0F / 5.0F) + 32.0F;
     }
     return err;
 }
@@ -176,10 +184,13 @@ static cfn_hal_error_code_t sht30_temp_read_raw(cfn_sal_temp_sensor_t *driver, i
     {
         return CFN_HAL_ERROR_BAD_PARAM;
     }
-    cfn_sal_sht30_t      *sht        = CFN_HAL_CONTAINER_OF(driver, cfn_sal_sht30_t, temp);
-    cfn_hal_i2c_device_t *dev        = (cfn_hal_i2c_device_t *) sht->combined_state.phy->instance;
+    cfn_sal_sht30_t      *sht = CFN_HAL_CONTAINER_OF(driver, cfn_sal_sht30_t, temp);
+    cfn_hal_i2c_device_t *dev = (cfn_hal_i2c_device_t *) sht->shared.phy->instance;
 
-    uint8_t                   cmd[2] = { (SHT30_CMD_MEAS_HIGH_REP >> 8) & 0xFF, SHT30_CMD_MEAS_HIGH_REP & 0xFF };
+    /* Standard Big-Endian command split for SHT30 sensor */
+    uint8_t cmd[2]            = { cfn_util_get_msb16((uint16_t) SHT30_CMD_MEAS_HIGH_REP),
+                                  cfn_util_get_lsb16((uint16_t) SHT30_CMD_MEAS_HIGH_REP) };
+
     uint8_t                   buffer[2];
     cfn_hal_i2c_transaction_t xfr = { .slave_address   = dev->address,
                                       .tx_payload      = cmd,
@@ -187,10 +198,10 @@ static cfn_hal_error_code_t sht30_temp_read_raw(cfn_sal_temp_sensor_t *driver, i
                                       .rx_payload      = buffer,
                                       .nbr_of_rx_bytes = 2 };
 
-    cfn_hal_error_code_t err      = cfn_hal_i2c_xfr_polling(dev->i2c, &xfr, 100);
+    cfn_hal_error_code_t err      = cfn_hal_i2c_xfr_polling(dev->i2c, &xfr, SHT30_I2C_TIMEOUT_MS);
     if (err == CFN_HAL_ERROR_OK)
     {
-        *raw_out = (int32_t) ((buffer[0] << 8) | buffer[1]);
+        *raw_out = (int32_t) cfn_util_bytes_to_int16_le(buffer[0], buffer[1]);
     }
     return err;
 }
@@ -202,11 +213,12 @@ static cfn_hal_error_code_t sht30_temp_soft_reset(cfn_sal_temp_sensor_t *driver)
         return CFN_HAL_ERROR_BAD_PARAM;
     }
     cfn_sal_sht30_t      *sht        = CFN_HAL_CONTAINER_OF(driver, cfn_sal_sht30_t, temp);
-    cfn_hal_i2c_device_t *dev        = (cfn_hal_i2c_device_t *) sht->combined_state.phy->instance;
+    cfn_hal_i2c_device_t *dev        = (cfn_hal_i2c_device_t *) sht->shared.phy->instance;
 
-    uint8_t                   cmd[2] = { (SHT30_CMD_SOFT_RESET >> 8) & 0xFF, SHT30_CMD_SOFT_RESET & 0xFF };
+    uint8_t                   cmd[2] = { cfn_util_get_msb16((uint16_t) SHT30_CMD_SOFT_RESET),
+                                         cfn_util_get_lsb16((uint16_t) SHT30_CMD_SOFT_RESET) };
     cfn_hal_i2c_transaction_t xfr    = { .slave_address = dev->address, .tx_payload = cmd, .nbr_of_tx_bytes = 2 };
-    return cfn_hal_i2c_xfr_polling(dev->i2c, &xfr, 100);
+    return cfn_hal_i2c_xfr_polling(dev->i2c, &xfr, SHT30_I2C_TIMEOUT_MS);
 }
 
 static cfn_hal_error_code_t
@@ -218,13 +230,13 @@ sht30_temp_enable_heater(cfn_sal_temp_sensor_t *driver, uint32_t power_mw, uint3
         return CFN_HAL_ERROR_BAD_PARAM;
     }
     cfn_sal_sht30_t      *sht     = CFN_HAL_CONTAINER_OF(driver, cfn_sal_sht30_t, temp);
-    cfn_hal_i2c_device_t *dev     = (cfn_hal_i2c_device_t *) sht->combined_state.phy->instance;
+    cfn_hal_i2c_device_t *dev     = (cfn_hal_i2c_device_t *) sht->shared.phy->instance;
 
     uint16_t cmd_raw              = (power_mw > 0) ? SHT30_CMD_HEATER_ENABLE : SHT30_CMD_HEATER_DISABLE;
-    uint8_t  cmd[2]               = { (cmd_raw >> 8) & 0xFF, cmd_raw & 0xFF };
+    uint8_t  cmd[2]               = { cfn_util_get_msb16((uint16_t) cmd_raw), cfn_util_get_lsb16((uint16_t) cmd_raw) };
 
     cfn_hal_i2c_transaction_t xfr = { .slave_address = dev->address, .tx_payload = cmd, .nbr_of_tx_bytes = 2 };
-    return cfn_hal_i2c_xfr_polling(dev->i2c, &xfr, 100);
+    return cfn_hal_i2c_xfr_polling(dev->i2c, &xfr, SHT30_I2C_TIMEOUT_MS);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -253,9 +265,10 @@ static cfn_hal_error_code_t sht30_hum_read_raw(cfn_sal_hum_sensor_t *driver, int
         return CFN_HAL_ERROR_BAD_PARAM;
     }
     cfn_sal_sht30_t      *sht        = CFN_HAL_CONTAINER_OF(driver, cfn_sal_sht30_t, hum);
-    cfn_hal_i2c_device_t *dev        = (cfn_hal_i2c_device_t *) sht->combined_state.phy->instance;
+    cfn_hal_i2c_device_t *dev        = (cfn_hal_i2c_device_t *) sht->shared.phy->instance;
 
-    uint8_t                   cmd[2] = { (SHT30_CMD_MEAS_HIGH_REP >> 8) & 0xFF, SHT30_CMD_MEAS_HIGH_REP & 0xFF };
+    uint8_t                   cmd[2] = { cfn_util_get_msb16((uint16_t) SHT30_CMD_MEAS_HIGH_REP),
+                                         cfn_util_get_lsb16((uint16_t) SHT30_CMD_MEAS_HIGH_REP) };
     uint8_t                   buffer[6];
     cfn_hal_i2c_transaction_t xfr = { .slave_address   = dev->address,
                                       .tx_payload      = cmd,
@@ -263,10 +276,10 @@ static cfn_hal_error_code_t sht30_hum_read_raw(cfn_sal_hum_sensor_t *driver, int
                                       .rx_payload      = buffer,
                                       .nbr_of_rx_bytes = 6 };
 
-    cfn_hal_error_code_t err      = cfn_hal_i2c_xfr_polling(dev->i2c, &xfr, 100);
+    cfn_hal_error_code_t err      = cfn_hal_i2c_xfr_polling(dev->i2c, &xfr, SHT30_I2C_TIMEOUT_MS);
     if (err == CFN_HAL_ERROR_OK)
     {
-        *raw_out = (int32_t) ((buffer[3] << 8) | buffer[4]);
+        *raw_out = (int32_t) cfn_util_bytes_to_int16_le(buffer[3], buffer[4]);
     }
     return err;
 }
@@ -296,25 +309,30 @@ static const cfn_sal_hum_sensor_api_t HUM_API = {
 /* Public API                                                                 */
 /* -------------------------------------------------------------------------- */
 
-cfn_hal_error_code_t cfn_sal_sht30_construct(cfn_sal_sht30_t *sensor, const cfn_sal_phy_t *phy)
+cfn_hal_error_code_t cfn_sal_sht30_construct(cfn_sal_sht30_t *sensor, const cfn_sal_phy_t *phy, void *dependency)
 {
     if (!sensor || !phy || !phy->instance)
     {
         return CFN_HAL_ERROR_BAD_PARAM;
     }
 
-    sensor->combined_state.phy            = phy;
-    sensor->combined_state.init_ref_count = 0;
-    sensor->combined_state.hw_initialized = false;
+    cfn_sal_composite_init(&sensor->shared, phy);
 
-    cfn_sal_temp_sensor_populate(&sensor->temp, 0, &TEMP_API, phy, NULL, NULL, NULL);
-    cfn_sal_hum_sensor_populate(&sensor->hum, 0, &HUM_API, phy, NULL, NULL, NULL);
+    cfn_sal_temp_sensor_populate(&sensor->temp, 0, dependency, &TEMP_API, phy, NULL, NULL, NULL);
+    cfn_sal_hum_sensor_populate(&sensor->hum, 0, dependency, &HUM_API, phy, NULL, NULL, NULL);
 
     return CFN_HAL_ERROR_OK;
 }
 
-cfn_hal_error_code_t cfn_sal_sht30_destruct(const cfn_sal_sht30_t *sensor)
+cfn_hal_error_code_t cfn_sal_sht30_destruct(cfn_sal_sht30_t *sensor)
 {
-    CFN_HAL_UNUSED(sensor);
+    if (sensor == NULL)
+    {
+        return CFN_HAL_ERROR_BAD_PARAM;
+    }
+
+    cfn_sal_temp_sensor_populate(&sensor->temp, 0, NULL, NULL, NULL, NULL, NULL, NULL);
+    cfn_sal_hum_sensor_populate(&sensor->hum, 0, NULL, NULL, NULL, NULL, NULL, NULL);
+
     return CFN_HAL_ERROR_OK;
 }

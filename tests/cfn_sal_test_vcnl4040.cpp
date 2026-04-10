@@ -1,10 +1,10 @@
 /**
  * @file cfn_sal_test_vcnl4040.cpp
- * @brief Unit tests for the VCNL4040 combined sensor implementation.
+ * @brief Unit tests for the VCNL4040 composite sensor implementation.
  */
 
 #include <gtest/gtest.h>
-#include "devices/combined_sensor/vcnl4040/cfn_sal_vcnl4040.h"
+#include "devices/composite_sensor/vcnl4040/cfn_sal_vcnl4040.h"
 #include "cfn_hal_i2c.h"
 
 class Vcnl4040Test : public ::testing::Test
@@ -70,7 +70,7 @@ class Vcnl4040Test : public ::testing::Test
             return CFN_HAL_ERROR_OK;
         };
 
-        cfn_hal_i2c_populate(&mock_i2c, 0, nullptr, &mock_i2c_api, nullptr, &mock_i2c_cfg, nullptr, nullptr);
+        cfn_hal_i2c_populate(&mock_i2c, 0, nullptr, nullptr, &mock_i2c_api, nullptr, &mock_i2c_cfg, nullptr, nullptr);
 
         i2c_dev.i2c     = &mock_i2c;
         i2c_dev.address = CFN_SAL_VCNL4040_ADDR_DEFAULT;
@@ -84,29 +84,35 @@ class Vcnl4040Test : public ::testing::Test
 
 TEST_F(Vcnl4040Test, Lifecycle)
 {
-    EXPECT_EQ(cfn_sal_light_sensor_init(&vcnl.light), CFN_HAL_ERROR_OK);
-    EXPECT_EQ(vcnl.combined_state.init_ref_count, 1);
-    EXPECT_TRUE(vcnl.combined_state.hw_initialized);
+    EXPECT_EQ(cfn_sal_light_sensor_init(&vcnl.als), CFN_HAL_ERROR_OK);
+    EXPECT_EQ(vcnl.shared.init_ref_count, 1);
+    EXPECT_TRUE(vcnl.shared.hw_initialized);
 
     EXPECT_EQ(cfn_sal_prox_sensor_init(&vcnl.prox), CFN_HAL_ERROR_OK);
-    EXPECT_EQ(vcnl.combined_state.init_ref_count, 2);
+    EXPECT_EQ(vcnl.shared.init_ref_count, 2);
 
-    EXPECT_EQ(cfn_sal_light_sensor_deinit(&vcnl.light), CFN_HAL_ERROR_OK);
-    EXPECT_EQ(vcnl.combined_state.init_ref_count, 1);
+    EXPECT_EQ(cfn_sal_light_sensor_deinit(&vcnl.als), CFN_HAL_ERROR_OK);
+    EXPECT_EQ(vcnl.shared.init_ref_count, 1);
 
     EXPECT_EQ(cfn_sal_prox_sensor_deinit(&vcnl.prox), CFN_HAL_ERROR_OK);
-    EXPECT_EQ(vcnl.combined_state.init_ref_count, 0);
-    EXPECT_FALSE(vcnl.combined_state.hw_initialized);
+    EXPECT_EQ(vcnl.shared.init_ref_count, 0);
+    EXPECT_FALSE(vcnl.shared.hw_initialized);
 }
 
 TEST_F(Vcnl4040Test, Measurement)
 {
-    cfn_sal_light_sensor_init(&vcnl.light);
+    cfn_sal_light_sensor_init(&vcnl.als);
 
     float lux = 0.0f;
-    EXPECT_EQ(cfn_sal_light_sensor_read_lux(&vcnl.light, &lux), CFN_HAL_ERROR_OK);
+    EXPECT_EQ(cfn_sal_light_sensor_read_lux(&vcnl.als, &lux), CFN_HAL_ERROR_OK);
     EXPECT_FLOAT_EQ(lux, 100.0f);
 
     float prox = 0.0f;
     EXPECT_EQ(cfn_sal_prox_sensor_read_distance_mm(&vcnl.prox, &prox), CFN_HAL_ERROR_OK);
+}
+
+TEST_F(Vcnl4040Test, Getters)
+{
+    EXPECT_EQ(cfn_sal_vcnl4040_get_als(&vcnl), &vcnl.als);
+    EXPECT_EQ(cfn_sal_vcnl4040_get_prox(&vcnl), &vcnl.prox);
 }

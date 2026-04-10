@@ -1,10 +1,10 @@
 /**
  * @file cfn_sal_test_opt4048.cpp
- * @brief Unit tests for the OPT4048 combined sensor implementation.
+ * @brief Unit tests for the OPT4048 composite sensor implementation.
  */
 
 #include <gtest/gtest.h>
-#include "devices/combined_sensor/opt4048/cfn_sal_opt4048.h"
+#include "devices/composite_sensor/opt4048/cfn_sal_opt4048.h"
 #include "cfn_hal_i2c.h"
 
 class Opt4048Test : public ::testing::Test
@@ -84,7 +84,7 @@ class Opt4048Test : public ::testing::Test
             return CFN_HAL_ERROR_OK;
         };
 
-        cfn_hal_i2c_populate(&mock_i2c, 0, nullptr, &mock_i2c_api, nullptr, &mock_i2c_cfg, nullptr, nullptr);
+        cfn_hal_i2c_populate(&mock_i2c, 0, nullptr, nullptr, &mock_i2c_api, nullptr, &mock_i2c_cfg, nullptr, nullptr);
 
         i2c_dev.i2c     = &mock_i2c;
         i2c_dev.address = CFN_SAL_OPT4048_ADDR_DEFAULT;
@@ -98,19 +98,19 @@ class Opt4048Test : public ::testing::Test
 
 TEST_F(Opt4048Test, Lifecycle)
 {
-    EXPECT_EQ(cfn_sal_light_sensor_init(&opt.light), CFN_HAL_ERROR_OK);
-    EXPECT_EQ(opt.combined_state.init_ref_count, 1);
-    EXPECT_TRUE(opt.combined_state.hw_initialized);
+    EXPECT_EQ(cfn_sal_light_sensor_init(&opt.als), CFN_HAL_ERROR_OK);
+    EXPECT_EQ(opt.shared.init_ref_count, 1);
+    EXPECT_TRUE(opt.shared.hw_initialized);
 
     EXPECT_EQ(cfn_sal_color_sensor_init(&opt.color), CFN_HAL_ERROR_OK);
-    EXPECT_EQ(opt.combined_state.init_ref_count, 2);
+    EXPECT_EQ(opt.shared.init_ref_count, 2);
 
-    EXPECT_EQ(cfn_sal_light_sensor_deinit(&opt.light), CFN_HAL_ERROR_OK);
-    EXPECT_EQ(opt.combined_state.init_ref_count, 1);
+    EXPECT_EQ(cfn_sal_light_sensor_deinit(&opt.als), CFN_HAL_ERROR_OK);
+    EXPECT_EQ(opt.shared.init_ref_count, 1);
 
     EXPECT_EQ(cfn_sal_color_sensor_deinit(&opt.color), CFN_HAL_ERROR_OK);
-    EXPECT_EQ(opt.combined_state.init_ref_count, 0);
-    EXPECT_FALSE(opt.combined_state.hw_initialized);
+    EXPECT_EQ(opt.shared.init_ref_count, 0);
+    EXPECT_FALSE(opt.shared.hw_initialized);
 }
 
 TEST_F(Opt4048Test, MathDecoding)
@@ -127,7 +127,7 @@ TEST_F(Opt4048Test, MathDecoding)
     EXPECT_EQ(ch3, 1000);
 
     float lux = 0.0f;
-    EXPECT_EQ(cfn_sal_light_sensor_read_lux(&opt.light, &lux), CFN_HAL_ERROR_OK);
+    EXPECT_EQ(cfn_sal_light_sensor_read_lux(&opt.als, &lux), CFN_HAL_ERROR_OK);
     /* Lux is CH1 * 0.00215 -> 1000 * 0.00215 = 2.15 */
     EXPECT_FLOAT_EQ(lux, 2.15f);
 
@@ -149,4 +149,10 @@ TEST_F(Opt4048Test, MathDecoding)
     /* We just ensure it calculates something without crashing and provides a float. */
     EXPECT_GT(cct, 5000.0f);
     EXPECT_LT(cct, 6000.0f);
+}
+
+TEST_F(Opt4048Test, Getters)
+{
+    EXPECT_EQ(cfn_sal_opt4048_get_als(&opt), &opt.als);
+    EXPECT_EQ(cfn_sal_opt4048_get_color(&opt), &opt.color);
 }

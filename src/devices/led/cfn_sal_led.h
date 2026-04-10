@@ -11,6 +11,7 @@ extern "C"
 cfn_hal_error_code_t cfn_sal_led_construct(cfn_sal_led_t              *driver,
                                            const cfn_sal_led_config_t *config,
                                            const cfn_sal_phy_t        *phy,
+                                           void                       *dependency,
                                            cfn_sal_led_callback_t      callback,
                                            void                       *user_arg);
 cfn_hal_error_code_t cfn_sal_led_destruct(cfn_sal_led_t *driver);

@@ -1,10 +1,10 @@
 /**
  * @file cfn_sal_test_lsm6ds3.cpp
- * @brief Unit tests for the LSM6DS3 combined sensor implementation.
+ * @brief Unit tests for the LSM6DS3 composite sensor implementation.
  */
 
 #include <gtest/gtest.h>
-#include "devices/combined_sensor/lsm6ds3/cfn_sal_lsm6ds3.h"
+#include "devices/composite_sensor/lsm6ds3/cfn_sal_lsm6ds3.h"
 #include "cfn_hal_i2c.h"
 #include "cfn_hal_spi.h"
 
@@ -52,7 +52,7 @@ class Lsm6ds3Test : public ::testing::Test
             return CFN_HAL_ERROR_OK;
         };
 
-        cfn_hal_i2c_populate(&mock_i2c, 0, nullptr, &mock_i2c_api, nullptr, &mock_i2c_cfg, nullptr, nullptr);
+        cfn_hal_i2c_populate(&mock_i2c, 0, nullptr, nullptr, &mock_i2c_api, nullptr, &mock_i2c_cfg, nullptr, nullptr);
         i2c_dev.i2c      = &mock_i2c;
         i2c_dev.address  = 0x6A;
 
@@ -66,16 +66,22 @@ class Lsm6ds3Test : public ::testing::Test
 TEST_F(Lsm6ds3Test, Lifecycle)
 {
     EXPECT_EQ(cfn_sal_accel_init(&lsm.accel), CFN_HAL_ERROR_OK);
-    EXPECT_EQ(lsm.combined_state.init_ref_count, 1);
-    EXPECT_TRUE(lsm.combined_state.hw_initialized);
+    EXPECT_EQ(lsm.shared.init_ref_count, 1);
+    EXPECT_TRUE(lsm.shared.hw_initialized);
 
     EXPECT_EQ(cfn_sal_gyro_sensor_init(&lsm.gyro), CFN_HAL_ERROR_OK);
-    EXPECT_EQ(lsm.combined_state.init_ref_count, 2);
+    EXPECT_EQ(lsm.shared.init_ref_count, 2);
 
     EXPECT_EQ(cfn_sal_accel_deinit(&lsm.accel), CFN_HAL_ERROR_OK);
-    EXPECT_EQ(lsm.combined_state.init_ref_count, 1);
+    EXPECT_EQ(lsm.shared.init_ref_count, 1);
 
     EXPECT_EQ(cfn_sal_gyro_sensor_deinit(&lsm.gyro), CFN_HAL_ERROR_OK);
-    EXPECT_EQ(lsm.combined_state.init_ref_count, 0);
-    EXPECT_FALSE(lsm.combined_state.hw_initialized);
+    EXPECT_EQ(lsm.shared.init_ref_count, 0);
+    EXPECT_FALSE(lsm.shared.hw_initialized);
+}
+
+TEST_F(Lsm6ds3Test, Getters)
+{
+    EXPECT_EQ(cfn_sal_lsm6ds3_get_accel(&lsm), &lsm.accel);
+    EXPECT_EQ(cfn_sal_lsm6ds3_get_gyro(&lsm), &lsm.gyro);
 }

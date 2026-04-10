@@ -12,6 +12,8 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
+message("BUILD IS UNIVERSE: ${CAFFEINE_UNIVERSE_TARGET}")
+
 # 3. Code Quality (Formatting & Analysis)
 # Define the absolute universe of sources for this repository
 # Globbing is encouraged for CI quality gates to ensure 100% coverage
@@ -35,7 +37,7 @@ include(FetchContent)
 FetchContent_Declare(
     caffeine-hal
     GIT_REPOSITORY https://github.com/while-one/caffeine-hal.git
-    GIT_TAG        v0.5.9
+    GIT_TAG        v0.6.3
 
 )
 
@@ -44,52 +46,50 @@ FetchContent_MakeAvailable(caffeine-hal)
 FetchContent_Declare(
     caffeine-sal
     GIT_REPOSITORY https://github.com/while-one/caffeine-sal.git
-    GIT_TAG        v0.1.14
+    GIT_TAG        v0.1.16
 )
 FetchContent_MakeAvailable(caffeine-sal)
 
 # --- Component Configuration ---
 # Actual binary targets MUST explicitly list all sources for determinism
-set(PORT_SOURCES_C
+set(CFN_SAL_IMPL_SOURCES_C
     src/devices/accel/bma530/cfn_sal_accel_bma530.c
     src/devices/accel/lis2dh12/cfn_sal_accel_lis2dh12.c
     src/devices/button/cfn_sal_button.c
-    src/devices/combined_sensor/aht20/cfn_sal_aht20.c
-    src/devices/combined_sensor/bme280/cfn_sal_bme280.c
-    src/devices/combined_sensor/lsm6ds3/cfn_sal_lsm6ds3.c
-    src/devices/combined_sensor/opt4048/cfn_sal_opt4048.c
-    src/devices/combined_sensor/sht30/cfn_sal_sht30.c
-    src/devices/combined_sensor/sht40/cfn_sal_sht40.c
-    src/devices/combined_sensor/vcnl4040/cfn_sal_vcnl4040.c
+    src/devices/composite_sensor/aht20/cfn_sal_aht20.c
+    src/devices/composite_sensor/bme280/cfn_sal_bme280.c
+    src/devices/composite_sensor/lsm6ds3/cfn_sal_lsm6ds3.c
+    src/devices/composite_sensor/opt4048/cfn_sal_opt4048.c
+    src/devices/composite_sensor/sht30/cfn_sal_sht30.c
+    src/devices/composite_sensor/sht40/cfn_sal_sht40.c
+    src/devices/composite_sensor/vcnl4040/cfn_sal_vcnl4040.c
     src/devices/gpio_expander/pcf8574/cfn_sal_pcf8574.c
     src/devices/led/cfn_sal_led.c
-    src/devices/temp_sensor/rmp117/cfn_sal_temp_rmp117.c
     src/utilities/cli/cfn_sal_cli.c
     src/utilities/collection/linkedlist/cfn_sal_collection_linkedlist.c
     src/utilities/collection/ringbuffer/cfn_sal_collection_ringbuffer.c
     src/utilities/timekeeping/cfn_sal_timekeeping.c
 )
 
-set(PORT_SOURCES_H
-    src/devices/accel/bma530/cfn_sal_accel_bma530_port.h
-    src/devices/accel/lis2dh12/cfn_sal_accel_lis2dh12_port.h
-    src/devices/button/cfn_sal_button_port.h
-    src/devices/combined_sensor/aht20/cfn_sal_aht20.h
-    src/devices/combined_sensor/bme280/cfn_sal_bme280.h
-    src/devices/combined_sensor/lsm6ds3/cfn_sal_lsm6ds3.h
-    src/devices/combined_sensor/opt4048/cfn_sal_opt4048.h
-    src/devices/combined_sensor/sht30/cfn_sal_sht30.h
-    src/devices/combined_sensor/sht40/cfn_sal_sht40.h
-    src/devices/combined_sensor/vcnl4040/cfn_sal_vcnl4040.h
+set(CFN_SAL_IMPL_SOURCES_H
+    src/devices/accel/bma530/cfn_sal_accel_bma530.h
+    src/devices/accel/lis2dh12/cfn_sal_accel_lis2dh12.h
+    src/devices/button/cfn_sal_button.h
+    src/devices/composite_sensor/aht20/cfn_sal_aht20.h
+    src/devices/composite_sensor/bme280/cfn_sal_bme280.h
+    src/devices/composite_sensor/lsm6ds3/cfn_sal_lsm6ds3.h
+    src/devices/composite_sensor/opt4048/cfn_sal_opt4048.h
+    src/devices/composite_sensor/sht30/cfn_sal_sht30.h
+    src/devices/composite_sensor/sht40/cfn_sal_sht40.h
+    src/devices/composite_sensor/vcnl4040/cfn_sal_vcnl4040.h
     src/devices/gpio_expander/pcf8574/cfn_sal_pcf8574.h
-    src/devices/led/cfn_sal_led_port.h
-    src/devices/temp_sensor/rmp117/cfn_sal_temp_rmp117_port.h
-    src/utilities/cli/cfn_sal_cli_port.h
-    src/utilities/collection/linkedlist/cfn_sal_collection_linkedlist_port.h
-    src/utilities/collection/ringbuffer/cfn_sal_collection_ringbuffer_port.h
+    src/devices/led/cfn_sal_led.h
+    src/utilities/cli/cfn_sal_cli.h
+    src/utilities/collection/linkedlist/cfn_sal_collection_linkedlist.h
+    src/utilities/collection/ringbuffer/cfn_sal_collection_ringbuffer.h
 )
 
-add_library(${PROJECT_NAME} STATIC ${PORT_SOURCES_C})
+add_library(${PROJECT_NAME} STATIC ${CFN_SAL_IMPL_SOURCES_C})
 
 target_compile_options(${PROJECT_NAME} PRIVATE ${CAFFEINE_COMPILE_OPTIONS})
 target_compile_options(${PROJECT_NAME} INTERFACE ${CAFFEINE_COMPILE_OPTIONS})

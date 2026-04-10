@@ -1,5 +1,4 @@
 #include "utilities/cfn_sal_collection.h"
-#include "cfn_sal_collection_linkedlist_port.h"
 #include <string.h>
 
 typedef struct list_node_s
@@ -313,26 +312,27 @@ static const cfn_sal_collection_api_t API = {
     .clear = port_clear,
 };
 
-cfn_hal_error_code_t cfn_sal_collection_linkedlist_construct(cfn_sal_collection_t              *driver,
-                                                             const cfn_sal_collection_config_t *config,
-                                                             const cfn_sal_phy_t               *phy,
-                                                             cfn_sal_collection_callback_t      callback,
-                                                             void                              *user_arg)
+cfn_hal_error_code_t cfn_sal_collection_construct(cfn_sal_collection_t              *driver,
+                                                  const cfn_sal_collection_config_t *config,
+                                                  const cfn_sal_phy_t               *phy,
+                                                  void                              *dependency,
+                                                  cfn_sal_collection_callback_t      callback,
+                                                  void                              *user_arg)
 {
     if ((driver == NULL) || (phy == NULL))
     {
         return CFN_HAL_ERROR_BAD_PARAM;
     }
-    cfn_sal_collection_populate(driver, 0, &API, phy, config, callback, user_arg);
+    cfn_sal_collection_populate(driver, 0, dependency, &API, phy, config, callback, user_arg);
     return CFN_HAL_ERROR_OK;
 }
 
-cfn_hal_error_code_t cfn_sal_collection_linkedlist_destruct(cfn_sal_collection_t *driver)
+cfn_hal_error_code_t cfn_sal_collection_destruct(cfn_sal_collection_t *driver)
 {
     if (driver == NULL)
     {
         return CFN_HAL_ERROR_BAD_PARAM;
     }
-    cfn_sal_collection_populate(driver, 0, NULL, NULL, NULL, NULL, NULL);
+    cfn_sal_collection_populate(driver, 0, NULL, NULL, NULL, NULL, NULL, NULL);
     return CFN_HAL_ERROR_OK;
 }

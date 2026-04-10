@@ -10,7 +10,7 @@ class TimekeepingTest : public Test
   protected:
     void SetUp() override
     {
-        cfn_sal_timekeeping_construct(&timekeeping, NULL, NULL, NULL, NULL);
+        cfn_sal_timekeeping_construct(&timekeeping, NULL, NULL, NULL, NULL, NULL);
     }
 
     void TearDown() override

@@ -43,9 +43,13 @@ typedef struct
  * @brief Constructs the PCF8574 driver.
  * @param driver Pointer to the driver structure.
  * @param phy Pointer to the I2C physical interface.
+ * @param dependency Pointer to an optional dependency.
+ * @param callback Optional event callback.
+ * @param user_arg Optional user-defined argument for the callback.
  * @return CFN_HAL_ERROR_OK on success.
  */
-cfn_hal_error_code_t cfn_sal_pcf8574_construct(cfn_sal_pcf8574_t *driver, const cfn_sal_phy_t *phy);
+cfn_hal_error_code_t cfn_sal_pcf8574_construct(
+    cfn_sal_pcf8574_t *driver, const cfn_sal_phy_t *phy, void *dependency, cfn_hal_callback_t callback, void *user_arg);
 
 /**
  * @brief Destructs the PCF8574 driver.

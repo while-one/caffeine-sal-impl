@@ -109,6 +109,7 @@ static const cfn_sal_timekeeping_api_t TIMEKEEPING_API = {
 cfn_hal_error_code_t cfn_sal_timekeeping_construct(cfn_sal_timekeeping_t              *driver,
                                                    const cfn_sal_timekeeping_config_t *config,
                                                    const cfn_sal_phy_t                *phy,
+                                                   void                               *dependency,
                                                    cfn_sal_timekeeping_callback_t      callback,
                                                    void                               *user_arg)
 {
@@ -117,7 +118,7 @@ cfn_hal_error_code_t cfn_sal_timekeeping_construct(cfn_sal_timekeeping_t        
         return CFN_HAL_ERROR_BAD_PARAM;
     }
 
-    cfn_sal_timekeeping_populate(driver, 0, &TIMEKEEPING_API, phy, config, callback, user_arg);
+    cfn_sal_timekeeping_populate(driver, 0, dependency, &TIMEKEEPING_API, phy, config, callback, user_arg);
     return CFN_HAL_ERROR_OK;
 }
 
@@ -127,6 +128,7 @@ cfn_hal_error_code_t cfn_sal_timekeeping_destruct(cfn_sal_timekeeping_t *driver)
     {
         return CFN_HAL_ERROR_BAD_PARAM;
     }
+    cfn_sal_timekeeping_populate(driver, 0, NULL, NULL, NULL, NULL, NULL, NULL);
     driver->base.status = CFN_HAL_DRIVER_STATUS_UNKNOWN;
     return CFN_HAL_ERROR_OK;
 }

@@ -1,11 +1,16 @@
 #include "devices/cfn_sal_accel.h"
-#include "cfn_sal_accel_lis2dh12_port.h"
+#include "cfn_sal_accel_lis2dh12.h"
 #include "cfn_hal_i2c.h"
+#include "cfn_hal_util.h"
 #include <string.h>
 
-#define LIS2DH12_I2C_ADDR   0x18
-#define LIS2DH12_REG_CTRL1  0x20
-#define LIS2DH12_REG_DATA_X 0x28
+#define LIS2DH12_I2C_ADDR   0x18UL
+#define LIS2DH12_REG_CTRL1  0x20UL
+#define LIS2DH12_REG_DATA_X 0x28UL
+
+#define LIS2DH12_I2C_TIMEOUT_MS    100
+#define LIS2DH12_AUTO_INC_MASK     0x80UL
+#define LIS2DH12_CTRL1_DEFAULT_CFG 0x57
 
 static cfn_hal_error_code_t port_base_init(cfn_hal_driver_t *base)
 {
@@ -23,11 +28,11 @@ static cfn_hal_error_code_t port_base_init(cfn_hal_driver_t *base)
     }
 
     /* Enable sensor: 100Hz, Normal mode, all axes enabled */
-    uint8_t                       ctrl1 = 0x57;
+    uint8_t                       ctrl1 = LIS2DH12_CTRL1_DEFAULT_CFG;
     cfn_hal_i2c_mem_transaction_t xfr   = {
           .dev_addr = LIS2DH12_I2C_ADDR, .mem_addr = LIS2DH12_REG_CTRL1, .mem_addr_size = 1, .data = &ctrl1, .size = 1
     };
-    return cfn_hal_i2c_mem_write(i2c, &xfr, 100);
+    return cfn_hal_i2c_mem_write(i2c, &xfr, LIS2DH12_I2C_TIMEOUT_MS);
 }
 
 static cfn_hal_error_code_t port_base_deinit(cfn_hal_driver_t *base)
@@ -95,17 +100,17 @@ static cfn_hal_error_code_t port_read_xyz_raw(cfn_sal_accel_t *driver, cfn_sal_a
     uint8_t data[6];
     /* LIS2DH12 multi-byte read requires setting bit 7 of the address */
     cfn_hal_i2c_mem_transaction_t xfr = { .dev_addr      = LIS2DH12_I2C_ADDR,
-                                          .mem_addr      = LIS2DH12_REG_DATA_X | 0x80,
+                                          .mem_addr      = LIS2DH12_REG_DATA_X | LIS2DH12_AUTO_INC_MASK,
                                           .mem_addr_size = 1,
                                           .data          = data,
                                           .size          = 6 };
 
-    cfn_hal_error_code_t err          = cfn_hal_i2c_mem_read(i2c, &xfr, 100);
+    cfn_hal_error_code_t err          = cfn_hal_i2c_mem_read(i2c, &xfr, LIS2DH12_I2C_TIMEOUT_MS);
     if (err == CFN_HAL_ERROR_OK)
     {
-        data_out->x = (int16_t) ((data[1] << 8) | data[0]) >> 4;
-        data_out->y = (int16_t) ((data[3] << 8) | data[2]) >> 4;
-        data_out->z = (int16_t) ((data[5] << 8) | data[4]) >> 4;
+        data_out->x = cfn_util_bytes_to_int16_le(data[1], data[0]) / 16;
+        data_out->y = cfn_util_bytes_to_int16_le(data[3], data[2]) / 16;
+        data_out->z = cfn_util_bytes_to_int16_le(data[5], data[4]) / 16;
     }
     return err;
 }
@@ -153,6 +158,7 @@ static const cfn_sal_accel_api_t API = {
 cfn_hal_error_code_t cfn_sal_accel_lis2dh12_construct(cfn_sal_accel_t              *driver,
                                                       const cfn_sal_accel_config_t *config,
                                                       const cfn_sal_phy_t          *phy,
+                                                      void                         *dependency,
                                                       cfn_sal_accel_callback_t      callback,
                                                       void                         *user_arg)
 {
@@ -160,7 +166,7 @@ cfn_hal_error_code_t cfn_sal_accel_lis2dh12_construct(cfn_sal_accel_t           
     {
         return CFN_HAL_ERROR_BAD_PARAM;
     }
-    cfn_sal_accel_populate(driver, 0, &API, phy, config, callback, user_arg);
+    cfn_sal_accel_populate(driver, 0, dependency, &API, phy, config, callback, user_arg);
     return CFN_HAL_ERROR_OK;
 }
 
@@ -170,6 +176,6 @@ cfn_hal_error_code_t cfn_sal_accel_lis2dh12_destruct(cfn_sal_accel_t *driver)
     {
         return CFN_HAL_ERROR_BAD_PARAM;
     }
-    cfn_sal_accel_populate(driver, 0, NULL, NULL, NULL, NULL, NULL);
+    cfn_sal_accel_populate(driver, 0, NULL, NULL, NULL, NULL, NULL, NULL);
     return CFN_HAL_ERROR_OK;
 }

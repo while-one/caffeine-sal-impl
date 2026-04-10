@@ -34,7 +34,7 @@ This repository contains concrete implementations for the abstract middleware se
     *   `button/`: GPIO-based button with debounce.
     *   `temp_sensor/`: SHT30, RMP117.
     *   `accel/`: BMA530, LIS2DH12.
-    *   `combined_sensor/`: BME280 (Temperature + Humidity + Pressure).
+    *   `composite_sensor/`: BME280 (Temperature + Humidity + Pressure).
 *   `src/utilities/`:
     *   `cli/`: Command Line Interface.
     *   `collection/`: Linked List, Ring Buffer.
@@ -53,7 +53,7 @@ The API reference for this repository is generated automatically via Doxygen and
 
 This repository follows the architectural mandates of the `caffeine-sal` layer:
 *   **Generic PHY**: All implementations use the unified `cfn_sal_phy_t` for hardware mapping.
-*   **Composite Struct Pattern**: Combination sensors (like the BME280) use composite structures containing all logical interfaces and a standardized `cfn_sal_combined_state_t`. Navigation uses the `CFN_HAL_CONTAINER_OF` macro for type-safe, deterministic parent retrieval.
+*   **Composite Struct Pattern**: Combination sensors (like the BME280) use composite structures containing all logical interfaces and a standardized `cfn_sal_composite_shared_t`. Navigation uses the `CFN_HAL_CONTAINER_OF` macro for type-safe, deterministic parent retrieval.
 
 ## Development & Testing
 

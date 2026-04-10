@@ -1,6 +1,6 @@
 /**
  * @file cfn_sal_sht40.h
- * @brief SHT40 combined sensor (Temperature and Humidity) implementation.
+ * @brief SHT40 composite sensor (Temperature and Humidity) implementation.
  */
 
 #ifndef CFN_SAL_SHT40_H
@@ -11,20 +11,18 @@ extern "C"
 {
 #endif
 
+/* Includes ---------------------------------------------------------*/
 #include "cfn_sal.h"
-#include "devices/cfn_sal_temp_sensor.h"
+#include "devices/cfn_sal_composite.h"
 #include "devices/cfn_sal_hum_sensor.h"
+#include "devices/cfn_sal_temp_sensor.h"
 #include "utilities/cfn_sal_timekeeping.h"
 
-/* -------------------------------------------------------------------------- */
-/* Constants                                                                  */
-/* -------------------------------------------------------------------------- */
+/* Constants --------------------------------------------------------*/
 
 #define CFN_SAL_SHT40_ADDR_DEFAULT 0x44 /*!< Standard SHT40 I2C Address */
 
-/* -------------------------------------------------------------------------- */
-/* Types                                                                      */
-/* -------------------------------------------------------------------------- */
+/* Types ------------------------------------------------------------*/
 
 /**
  * @brief SHT40 composite sensor structure.
@@ -35,7 +33,7 @@ typedef struct
     cfn_sal_temp_sensor_t temp; /*!< Polymorphic Temperature Interface */
     cfn_sal_hum_sensor_t  hum;  /*!< Polymorphic Humidity Interface */
 
-    cfn_sal_combined_state_t combined_state; /*!< Shared Framework State (PHY, ref count) */
+    cfn_sal_composite_shared_t shared; /*!< Shared Framework State (PHY, ref count) */
 
     /* Internal Caching */
     uint64_t last_read_timestamp_ms;
@@ -43,9 +41,7 @@ typedef struct
     float    cached_hum_rh;
 } cfn_sal_sht40_t;
 
-/* -------------------------------------------------------------------------- */
-/* Public API                                                                 */
-/* -------------------------------------------------------------------------- */
+/* Public API -------------------------------------------------------*/
 
 /**
  * @brief SHT40 monolithic constructor.
@@ -66,7 +62,31 @@ cfn_sal_sht40_construct(cfn_sal_sht40_t *sensor, const cfn_sal_phy_t *phy, cfn_s
  * @param sensor Pointer to the composite sensor structure.
  * @return CFN_HAL_ERROR_OK on success.
  */
-cfn_hal_error_code_t cfn_sal_sht40_destruct(const cfn_sal_sht40_t *sensor);
+cfn_hal_error_code_t cfn_sal_sht40_destruct(cfn_sal_sht40_t *sensor);
+
+/* Getters ----------------------------------------------------------*/
+
+/**
+ * @brief Get the abstract Temperature interface from the SHT40 composite sensor.
+ *
+ * @param driver Pointer to the SHT40 composite sensor structure.
+ * @return Pointer to the Temperature interface, or NULL if driver is NULL.
+ */
+static inline cfn_sal_temp_sensor_t *cfn_sal_sht40_get_temp(cfn_sal_sht40_t *driver)
+{
+    return (driver == NULL) ? NULL : &driver->temp;
+}
+
+/**
+ * @brief Get the abstract Humidity interface from the SHT40 composite sensor.
+ *
+ * @param driver Pointer to the SHT40 composite sensor structure.
+ * @return Pointer to the Humidity interface, or NULL if driver is NULL.
+ */
+static inline cfn_sal_hum_sensor_t *cfn_sal_sht40_get_hum(cfn_sal_sht40_t *driver)
+{
+    return (driver == NULL) ? NULL : &driver->hum;
+}
 
 #ifdef __cplusplus
 }
